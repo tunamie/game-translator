@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻訳チャット</title>
+    <style>
+        /* Appleダークモードのカラーパレット */
+        :root {
+            --bg-color: #000000; /* 深い黒（OLED対応） */
+            --nav-bg: rgba(28, 28, 30, 0.85); /* 半透明なグレー */
+            --msg-received-bg: #2c2c2e; /* 相手の吹き出し（グレー） */
+            --msg-received-text: #ffffff;
+            --msg-sent-bg: #0a84ff; /* 自分の吹き出し（Apple Blue） */
+            --msg-sent-text: #ffffff;
+            --border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            /* Appleのシステムフォントを指定 */
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
+            background-color: var(--bg-color);
+            color: #ffffff;
+            font-size: 20px; /* 50代でも読みやすいように文字を大きく設定 */
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden; /* 全体のスクロールを防ぐ */
+        }
+
+        /* 画面幅いっぱいを使い、ウインドウを細くしても美しく保つ */
+        #chat-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ヘッダー（すりガラス効果） */
+        #header {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            z-index: 10;
+            background: var(--nav-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 22px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* メッセージ表示エリア */
+        #messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 80px 20px 160px 20px; /* ヘッダーとフッターの裏に隠れないよう余白を確保 */
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* スクロールバーのデザイン（ダークモードに馴染ませる） */
+        #messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        #messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        /* 吹き出しの共通スタイル */
+        .message {
+            max-width: 85%; /* 画面が狭い時も広く使う */
+            padding: 14px 20px;
+            border-radius: 22px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            font-size: 20px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* 右側（自分がコピーした原文） */
+        .sent {
+            align-self: flex-end;
+            background-color: var(--msg-sent-bg);
+            color: var(--msg-sent-text);
+            border-bottom-right-radius: 4px; /* iMessage風の角の処理 */
+        }
+
+        /* 左側（翻訳結果） */
+        .received {
+            align-self: flex-start;
+            background-color: var(--msg-received-bg);
+            color: var(--msg-received-text);
+            border-bottom-left-radius: 4px;
+        }
+
+        .loading {
+            opacity: 0.6;
+            font-size: 18px;
+        }
+
+        /* 下部入力エリア（すりガラス効果） */
+        #input-area {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: var(--nav-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-top: 1px solid var(--border-color);
+            padding: 15px 20px 25px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 📋 ペースト＆翻訳ボタン */
+        #paste-btn {
+            background-color: var(--msg-sent-bg);
+            color: #fff;
+            border: none;
+            border-radius: 16px;
+            padding: 18px;
+            font-size: 22px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+        #paste-btn:active {
+            opacity: 0.7;
+        }
+
+        /* 手動入力エリア（ブラウザ制限でペーストできない時の予備） */
+        .manual-input {
+            display: flex;
+            gap: 12px;
+        }
+        .manual-input input {
+            flex-grow: 1;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            border-radius: 20px;
+            padding: 12px 18px;
+            font-size: 18px;
+            outline: none;
+        }
+        .manual-input input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .manual-input button {
+            background-color: #30d158; /* Apple Green */
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            color: #fff;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .manual-input button:active {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<div id="chat-container">
+    <div id="header">翻訳</div>
+    
+    <div id="messages">
+        <div class="message received">下の青いボタンを押すと、あなたがコピーしたテキストを自動で貼り付けて翻訳します。</div>
+    </div>
+    
+    <div id="input-area">
+        <!-- メインの翻訳ボタン -->
+        <button id="paste-btn">📋 コピーした文字を翻訳</button>
+        
+        <!-- 手動入力用の予備（セキュリティ制限対策） -->
+        <div class="manual-input">
+            <input type="text" id="input-text" placeholder="手動入力もできます...">
+            <button id="send-btn">↑</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const messagesContainer = document.getElementById('messages');
+    const inputText = document.getElementById('input-text');
+    const sendBtn = document.getElementById('send-btn');
+    const pasteBtn = document.getElementById('paste-btn');
+
+    // 🎮 ゲームスラングの変換辞書（フランクな表現）
+    const slangDictionary = {
+        "gg": "お疲れ！(GG)",
+        "ggwp": "いい試合だった！お疲れ！",
+        "glhf": "よろしく！楽しもう！",
+        "noob": "初心者め",
+        "lol": "笑",
+        "lmao": "爆笑",
+        "wtf": "は？何それ",
+        "afk": "離席中",
+        "brb": "すぐ戻る",
+        "nvm": "どんまい！気にしないで",
+        "thx": "ありがとう",
+        "ty": "ありがとう",
+        "nt": "惜しい！(Nice try)",
+        "mb": "ごめん俺のミス",
+        "sry": "ごめん",
+        "ez": "余裕だったな",
+        "wp": "上手いね！",
+        "omg": "まじか",
+        "1hp": "敵ミリ残り！",
+        "push": "突っ込もう！",
+        "lag": "ラグい",
+        "diff": "実力差やばい"
+    };
+
+    // 吹き出しを追加して自動スクロールする関数
+    function appendMessage(text, type) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${type}`;
+        msgDiv.textContent = text;
+        messagesContainer.appendChild(msgDiv);
+        // 一番下までスクロール
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+        return msgDiv;
+    }
+
+    // 翻訳を実行する関数（Google翻訳API・無料枠）
+    async function translateText(text) {
+        // ゲーム用語をフランクな日本語に置換
+        let processedText = text;
+        for (const[slang, meaning] of Object.entries(slangDictionary)) {
+            const regex = new RegExp(`\\b${slang}\\b`, 'gi');
+            processedText = processedText.replace(regex, ` ${meaning} `);
+        }
+
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ja&dt=t&q=${encodeURIComponent(processedText)}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('通信エラー');
+            const data = await response.json();
+            
+            let translatedText = '';
+            if (data && data[0]) {
+                data[0].forEach(item => {
+                    if (item[0]) translatedText += item[0];
+                });
+            }
+            return translatedText.trim();
+        } catch (error) {
+            console.error(error);
+            return 'エラー: 翻訳できませんでした。インターネット接続を確認してください。';
+        }
+    }
+
+    // メインの翻訳処理の流れ
+    async function processTranslation(text) {
+        if (!text) return;
+
+        // 右側にコピーした元の文章を表示
+        appendMessage(text, 'sent');
+        
+        // ローディング表示
+        const loadingMsg = appendMessage('翻訳中...', 'received loading');
+        
+        // 翻訳の実行
+        const translatedText = await translateText(text);
+
+        // ローディングを消して結果を表示
+        messagesContainer.removeChild(loadingMsg);
+        appendMessage(translatedText, 'received');
+    }
+
+    // 【1】「コピーした文字を翻訳」ボタンを押した時の処理
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            // クリップボードからテキストを読み取る
+            const text = await navigator.clipboard.readText();
+            
+            if (!text || text.trim() === '') {
+                alert('クリップボードが空です。テキストをコピーしてから押してください。');
+                return;
+            }
+            
+            // 翻訳処理を開始
+            processTranslation(text.trim());
+            
+        } catch (err) {
+            // ローカルファイルとして開いた場合など、ブラウザのセキュリティ制限で読み取れない時の対策
+            alert('ブラウザのセキュリティ制限により、クリップボードを直接読み取れませんでした。\nお手数ですが、下の入力欄にペーストして「↑」ボタンを押してください。');
+        }
+    });
+
+    // 【2】手動入力用の「↑」ボタンを押した時の処理（予備）
+    sendBtn.addEventListener('click', () => {
+        const text = inputText.value.trim();
+        if (text) {
+            processTranslation(text);
+            inputText.value = ''; // 入力欄を空にする
+        }
+    });
+
+    // 手動入力中にEnterキーを押した時
+    inputText.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendBtn.click();
+        }
+    });
+</script>
+
+</body>
+</html>
