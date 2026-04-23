@@ -11,8 +11,8 @@
             --nav-bg: rgba(28, 28, 30, 0.85);
             --msg-received-bg: #2c2c2e;
             --msg-received-text: #ffffff;
-            --msg-sent-bg: #0a84ff;
-            --msg-sent-text: #ffffff;
+            --msg-sent-bg: #1c1c1e; /* 原文の背景を少し暗めのグレーに */
+            --msg-sent-text: #a0a0a5; /* 原文の文字色を少し薄くしてメリハリを出す */
             --border-color: rgba(255, 255, 255, 0.15);
         }
 
@@ -26,12 +26,11 @@
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
             background-color: var(--bg-color);
             color: #ffffff;
-            font-size: 20px;
+            font-size: 16px; /* 文字サイズを少し小さく調整 */
             display: flex;
             justify-content: center;
             height: 100vh;
             overflow: hidden;
-            /* 画面全体をクリックできるようにカーソルを変更 */
             cursor: pointer;
         }
 
@@ -52,10 +51,10 @@
             background: var(--nav-bg);
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
-            padding: 15px;
+            padding: 10px;
             text-align: center;
             font-weight: 600;
-            font-size: 22px;
+            font-size: 18px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
@@ -64,22 +63,23 @@
         }
 
         .version-date {
-            font-size: 14px;
+            font-size: 12px;
             color: #a0a0a5;
             font-weight: normal;
             background: rgba(255, 255, 255, 0.1);
             padding: 2px 8px;
-            border-radius: 12px;
+            border-radius: 10px;
         }
 
+        /* メッセージエリア */
         #messages {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 80px 20px 160px 20px;
+            padding: 60px 15px 120px 15px; /* 上下の余白を調整し、表示領域を広く */
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            cursor: default; /* メッセージエリアは通常のカーソルに戻す */
+            gap: 25px; /* セットとセットの間の余白を広く取る */
+            cursor: default;
         }
 
         #messages::-webkit-scrollbar {
@@ -90,37 +90,47 @@
             border-radius: 10px;
         }
 
+        /* 原文と翻訳文をグループ化する枠 */
+        .translation-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px; /* 原文と翻訳文の間を限界まで詰める */
+            width: 100%;
+        }
+
+        /* 吹き出しの共通スタイル */
         .message {
-            max-width: 85%;
-            padding: 14px 20px;
-            border-radius: 22px;
-            line-height: 1.5;
+            width: 100%; /* 横幅いっぱいを使う */
+            padding: 10px 15px; /* 上下の余白を狭く調整 */
+            line-height: 1.4;
             word-wrap: break-word;
             white-space: pre-wrap;
-            font-size: 20px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            cursor: text; /* 文字は選択できるように */
+            font-size: 16px;
+            cursor: text;
         }
 
+        /* 上段（コピーした原文） */
         .sent {
-            align-self: flex-end;
             background-color: var(--msg-sent-bg);
             color: var(--msg-sent-text);
-            border-bottom-right-radius: 4px;
+            border-radius: 12px 12px 4px 4px; /* 上を丸く、下を少し平らに */
+            font-size: 14px; /* 原文は少し小さく */
         }
 
+        /* 下段（翻訳結果） */
         .received {
-            align-self: flex-start;
             background-color: var(--msg-received-bg);
             color: var(--msg-received-text);
-            border-bottom-left-radius: 4px;
+            border-radius: 4px 4px 12px 12px; /* 上を少し平らに、下を丸く */
+            font-weight: 500;
         }
 
         .loading {
             opacity: 0.6;
-            font-size: 18px;
+            font-size: 14px;
         }
 
+        /* 入力エリア */
         #input-area {
             position: absolute;
             bottom: 0;
@@ -129,40 +139,41 @@
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
             border-top: 1px solid var(--border-color);
-            padding: 15px 20px 25px 20px;
+            padding: 10px 15px 15px 15px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
             cursor: default;
         }
 
+        /* 青いボタン（細く調整） */
         #paste-btn {
-            background-color: var(--msg-sent-bg);
+            background-color: #0a84ff;
             color: #fff;
             border: none;
-            border-radius: 16px;
-            padding: 18px;
-            font-size: 22px;
+            border-radius: 12px;
+            padding: 12px; /* 余白を狭くして細く */
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             text-align: center;
             width: 100%;
             transition: opacity 0.2s;
-            pointer-events: none; /* 画面全体のクリックイベントを優先させるためにボタン自体の判定を消す */
+            pointer-events: none;
         }
 
         .manual-input {
             display: flex;
-            gap: 12px;
+            gap: 10px;
         }
         .manual-input input {
             flex-grow: 1;
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid var(--border-color);
             color: #ffffff;
-            border-radius: 20px;
-            padding: 12px 18px;
-            font-size: 18px;
+            border-radius: 16px;
+            padding: 8px 15px;
+            font-size: 14px;
             outline: none;
         }
         .manual-input input::placeholder {
@@ -172,10 +183,10 @@
             background-color: #30d158;
             border: none;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             color: #fff;
-            font-size: 22px;
+            font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             display: flex;
@@ -191,18 +202,18 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.23.2</span>
+        翻訳 <span class="version-date">v2026.04.23.3</span>
     </div>
     
     <div id="messages">
-        <!-- 初期メッセージ -->
-        <div class="message received">画面のどこかをクリックするだけで自動翻訳</div>
+        <div class="translation-group">
+            <div class="message sent">ここにコピーした文章が表示されます</div>
+            <div class="message received">画面のどこかをクリックするだけで自動翻訳</div>
+        </div>
     </div>
     
     <div id="input-area">
-        <!-- 見た目だけのボタン（機能は画面全体のクリックに統合） -->
         <button id="paste-btn">📋 コピーした文字を翻訳</button>
-        
         <div class="manual-input">
             <input type="text" id="input-text" placeholder="ここにペースト(Ctrl+V)してもOK...">
             <button id="send-btn">↑</button>
@@ -215,47 +226,51 @@
     const inputText = document.getElementById('input-text');
     const sendBtn = document.getElementById('send-btn');
 
-    // ★ 連続翻訳を防ぐための変数（直前に翻訳したテキストを記憶）★
     let lastTranslatedText = "";
 
-    // ★ Sky 星を紡ぐ子どもたち (Sky: Children of the Light) 専用辞書 ★
+    // ★ Sky 星を紡ぐ子どもたち 専用辞書 ★
     const slangDictionary = {
-        // --- Sky: キャラクター・プレイヤー層 ---
         "skykid": "星の子", "skid": "星の子", "moth": "雀(初心者)", "moths": "雀たち", "butterfly": "蝶(中級者)", "vet": "ベテラン", "veteran": "ベテラン", "ikemen": "イケメン", "ikejou": "イケジョ", "chibi": "リトル", "capeless": "羽なし",
-        // --- Sky: エリア・場所 ---
         "isle": "孤島", "isle of dawn": "孤島", "prairie": "草原", "daylight prairie": "草原", "forest": "雨林", "hidden forest": "雨林", "valley": "峡谷", "valley of triumph": "峡谷", "wasteland": "捨て地", "gw": "捨て地", "golden wasteland": "捨て地", "vault": "書庫", "vault of knowledge": "書庫", "eden": "原罪", "eye of eden": "原罪", "home": "ホーム", "aviary": "花鳥郷", "aviary village": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary": "楽園の島々", "sanctuary islands": "楽園", "prophecy": "予言の石窟", "cave of prophecies": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
-        // --- Sky: 精霊・生物 ---
         "spirit": "精霊", "spirits": "精霊", "ts": "再訪精霊", "traveling spirit": "再訪する精霊", "elder": "大精霊", "elders": "大精霊", "krill": "暗黒竜(エビ)", "dark dragon": "暗黒竜", "krilled": "エビにタゲられた", "crab": "カニ", "crabs": "カニ", "creb": "カニ", "kreb": "カニ", "manta": "マンタ", "jellyfish": "クラゲ",
-        // --- Sky: アイテム・通貨・魔法 ---
         "candle": "キャンドル", "candles": "キャンドル", "heart": "ハート", "hearts": "ハート", "wl": "光の翼", "winged light": "光の翼", "wing buff": "翼のバフ", "ac": "星のキャンドル", "ascended candle": "星のキャンドル", "ascended candles": "星のキャンドル", "spell": "魔法", "spells": "魔法", "potion": "ポーション", "instrument": "楽器", "prop": "持ち物", "cape": "ケープ", "mask": "マスク", "hair": "ヘアスタイル", "pants": "パンツ", "outfit": "衣装", "cosmetics": "コスメ(アイテム)", "iap": "課金アイテム", "igc": "ゲーム内通貨",
-        // --- Sky: アクション・プレイスタイル ---
         "cr": "キャンマラ", "candle run": "キャンマラ", "hr": "ハート交換", "heart trade": "ハート交換", "wlr": "翼マラソン(羽集め)", "wl run": "翼マラソン", "geyser": "間欠泉", "grandma": "おばあちゃん", "turtle": "ウミガメ", "shards": "闇の破片", "shard eruption": "破片の噴出", "red shard": "赤石(赤い破片)", "black shard": "黒石(黒い破片)", "oob": "裏世界(OOB)", "out of bounds": "裏世界", "glitch": "バグ(すり抜け)", "honk": "鳴く", "honking": "大鳴き", "deep call": "大鳴き", "uber": "タクシー(引率)", "ubering": "引率するよ", "carry": "手をつなぐ(キャリー)", "warp": "ワープ", "tp": "テレポート", "merge": "サーバー統合", "server merge": "サーバー統合", "adopt": "保護する", "adopt a moth": "雀を拾う", "friend tree": "フレンドツリー", "constellation": "星座", "season": "季節", "ap": "アドパス", "adventure pass": "アドベンチャーパス", "season pass": "シーズンパス", "beta": "ベータ版", "live": "ライブ版", "moth drop": "雀を落とす",
-        // --- 挨拶・相槌・日常の略語 ---
         "yessir": "了解です！", "yessum": "はいよ！", "kk": "おけおけ", "okey dokey": "おっけー！", "sure thing": "いいとも", "ofc": "当然", "obv": "明らかに", "defo": "絶対そう", "definitely": "間違いない",
         "nah": "ううん", "nope": "いやいや", "naur": "ないってば", "naw": "ないわー", 
         "heya": "やっほー", "hihi": "どもども", "sup": "調子どう？", "wassup": "うぃーっす", "howdy": "ちわー", "gm": "おはよ", "gn": "おやすみ", "bro": "兄弟", "bruh": "おいおい", "dude": "お前", "yall": "みんな", "fam": "仲間", "bestie": "親友",
         "cya": "またね", "buhbye": "じゃあね", "laters": "じゃあな", "ttyl": "後で話そう", "gtg": "もう行かなきゃ", "g2g": "抜けるね", "brb": "すぐ戻る", "bbl": "後で戻る", "bbs": "すぐ戻るね", "wb": "おかえり", "afk": "離席中", "brt": "すぐ行く", "gnight": "おやすみー", "peace out": "あばよ",
-        // --- 笑い・驚き・感謝 ---
         "lol": "笑", "lolz": "www", "lawl": "ワロタ", "lul": "草", "lmao": "爆笑", "kek": "草", "loool": "わろたああ",
         "wtf": "は？何それ", "wth": "何なんだよ", "omfg": "マジかよ", "wdym": "どういう意味？", "yikes": "うわぁ", "oof": "うっ(ダメージ)", "rip": "ご愁傷様", "sus": "怪しい",
         "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "tysm": "超ありがとう！", "tyvm": "本当にありがとう", "np": "問題ないよ", "yw": "どういたしまして", "sry": "ごめん", "srry": "ごめっ", "soz": "ごめーん", "mb": "ごめん私のミス", "my bad": "私のせいだ", "whoops": "あちゃー", "nvm": "どんまい！気にしないで", "nevermind": "やっぱいいや", "nw": "心配しないで", "no worries": "気にすんな",
-        // --- ネットスラング ---
         "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prob": "たぶん", "prolly": "おそらく", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
     };
 
-    function appendMessage(text, type) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${type}`;
-        msgDiv.textContent = text;
-        messagesContainer.appendChild(msgDiv);
+    // ★ 新レイアウト用の要素追加関数 ★
+    // 原文と翻訳文を一つの「グループ(枠)」に入れて表示する
+    function appendTranslationGroup(originalText) {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'translation-group';
+
+        // 1. 原文の表示（上段）
+        const sentDiv = document.createElement('div');
+        sentDiv.className = 'message sent';
+        sentDiv.textContent = originalText;
+        groupDiv.appendChild(sentDiv);
+
+        // 2. 翻訳中...の表示（下段）
+        const receivedDiv = document.createElement('div');
+        receivedDiv.className = 'message received loading';
+        receivedDiv.textContent = '翻訳中...';
+        groupDiv.appendChild(receivedDiv);
+
+        messagesContainer.appendChild(groupDiv);
         messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
-        return msgDiv;
+
+        return receivedDiv; // 後で翻訳結果を入れるために、下段の要素を返す
     }
 
     async function translateText(text) {
         let processedText = text;
-        
-        // 辞書の単語を検索して置換
         const slangRegex = new RegExp(`\\b(${Object.keys(slangDictionary).join('|')})\\b`, 'gi');
         processedText = processedText.replace(slangRegex, (match) => {
             return ` ${slangDictionary[match.toLowerCase()]} `;
@@ -277,27 +292,27 @@
             return translatedText.trim();
         } catch (error) {
             console.error(error);
-            return 'エラー: 翻訳できませんでした。インターネット接続を確認してください。';
+            return 'エラー: 翻訳できませんでした。';
         }
     }
 
-    // ★ 翻訳処理のメイン関数（重複チェックを追加） ★
     async function processTranslation(text) {
         if (!text) return;
-        
-        // 同じテキストを連続で翻訳しようとした場合は無視（1クリックで複数回発火するのを防ぐ）
         if (text === lastTranslatedText) return;
         
-        lastTranslatedText = text; // 今回翻訳したテキストを記憶
+        lastTranslatedText = text;
         
-        appendMessage(text, 'sent');
-        const loadingMsg = appendMessage('翻訳中...', 'received loading');
+        // 枠を作って原文を表示し、「翻訳中...」の要素を受け取る
+        const resultDiv = appendTranslationGroup(text);
+        
+        // 翻訳を実行
         const translatedText = await translateText(text);
-        messagesContainer.removeChild(loadingMsg);
-        appendMessage(translatedText, 'received');
+        
+        // 「翻訳中...」の要素の中身を、実際の翻訳結果に書き換える
+        resultDiv.textContent = translatedText;
+        resultDiv.classList.remove('loading');
     }
 
-    // ★ クリップボードから読み取って翻訳を実行する関数 ★
     async function readClipboardAndTranslate() {
         try {
             const text = await navigator.clipboard.readText();
@@ -309,28 +324,19 @@
         }
     }
 
-    // ==========================================
-    // ★ 1クリックでアクティブ化＆自動翻訳の仕組み ★
-    // ==========================================
-
-    // 【1】画面の「どこか」をクリック(マウスダウン)した瞬間に翻訳を走らせる
+    // 画面のどこかをクリック(マウスダウン)した瞬間
     document.addEventListener('mousedown', (e) => {
-        // もし手動入力欄（input）をクリックした場合は文字入力の邪魔をしないように除外
         if (e.target.tagName.toLowerCase() !== 'input') {
             readClipboardAndTranslate();
         }
     });
 
-    // 【2】ウィンドウが裏(非アクティブ)から表(アクティブ)になった瞬間に翻訳を走らせる
+    // ウィンドウがアクティブになった瞬間
     window.addEventListener('focus', () => {
-        // OS側の準備が整うまで少しだけ(0.1秒)遅らせて実行する
         setTimeout(readClipboardAndTranslate, 100);
     });
 
-    // ==========================================
-    // 手動入力・エンターキーでの翻訳（予備機能）
-    // ==========================================
-    
+    // 手動入力での翻訳
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -345,7 +351,6 @@
         }
     });
 
-    // 入力欄に直接ペースト(Ctrl+V)した場合の自動送信
     inputText.addEventListener('paste', () => {
         setTimeout(() => {
             const text = inputText.value.trim();
