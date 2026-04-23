@@ -11,8 +11,8 @@
             --nav-bg: rgba(28, 28, 30, 0.85);
             --msg-received-bg: #2c2c2e;
             --msg-received-text: #ffffff;
-            --msg-sent-bg: #1c1c1e; /* 原文の背景を少し暗めのグレーに */
-            --msg-sent-text: #a0a0a5; /* 原文の文字色を少し薄くしてメリハリを出す */
+            --msg-sent-bg: #1c1c1e;
+            --msg-sent-text: #a0a0a5;
             --border-color: rgba(255, 255, 255, 0.15);
         }
 
@@ -26,7 +26,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
             background-color: var(--bg-color);
             color: #ffffff;
-            font-size: 16px; /* 文字サイズを少し小さく調整 */
+            font-size: 16px;
             display: flex;
             justify-content: center;
             height: 100vh;
@@ -42,7 +42,6 @@
             position: relative;
         }
 
-        /* ヘッダー */
         #header {
             position: absolute;
             top: 0;
@@ -71,14 +70,13 @@
             border-radius: 10px;
         }
 
-        /* メッセージエリア */
         #messages {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 60px 15px 120px 15px; /* 上下の余白を調整し、表示領域を広く */
+            padding: 60px 15px 120px 15px;
             display: flex;
             flex-direction: column;
-            gap: 25px; /* セットとセットの間の余白を広く取る */
+            gap: 25px;
             cursor: default;
         }
 
@@ -90,18 +88,16 @@
             border-radius: 10px;
         }
 
-        /* 原文と翻訳文をグループ化する枠 */
         .translation-group {
             display: flex;
             flex-direction: column;
-            gap: 2px; /* 原文と翻訳文の間を限界まで詰める */
+            gap: 2px;
             width: 100%;
         }
 
-        /* 吹き出しの共通スタイル */
         .message {
-            width: 100%; /* 横幅いっぱいを使う */
-            padding: 10px 15px; /* 上下の余白を狭く調整 */
+            width: 100%;
+            padding: 10px 15px;
             line-height: 1.4;
             word-wrap: break-word;
             white-space: pre-wrap;
@@ -109,19 +105,17 @@
             cursor: text;
         }
 
-        /* 上段（コピーした原文） */
         .sent {
             background-color: var(--msg-sent-bg);
             color: var(--msg-sent-text);
-            border-radius: 12px 12px 4px 4px; /* 上を丸く、下を少し平らに */
-            font-size: 14px; /* 原文は少し小さく */
+            border-radius: 12px 12px 4px 4px;
+            font-size: 14px;
         }
 
-        /* 下段（翻訳結果） */
         .received {
             background-color: var(--msg-received-bg);
             color: var(--msg-received-text);
-            border-radius: 4px 4px 12px 12px; /* 上を少し平らに、下を丸く */
+            border-radius: 4px 4px 12px 12px;
             font-weight: 500;
         }
 
@@ -130,7 +124,6 @@
             font-size: 14px;
         }
 
-        /* 入力エリア */
         #input-area {
             position: absolute;
             bottom: 0;
@@ -146,13 +139,12 @@
             cursor: default;
         }
 
-        /* 青いボタン（細く調整） */
         #paste-btn {
             background-color: #0a84ff;
             color: #fff;
             border: none;
             border-radius: 12px;
-            padding: 12px; /* 余白を狭くして細く */
+            padding: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -202,7 +194,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.23.3</span>
+        翻訳 <span class="version-date">v2026.04.23.4</span>
     </div>
     
     <div id="messages">
@@ -231,33 +223,29 @@
     // ★ Sky 星を紡ぐ子どもたち 専用辞書 ★
     const slangDictionary = {
         "skykid": "星の子", "skid": "星の子", "moth": "雀(初心者)", "moths": "雀たち", "butterfly": "蝶(中級者)", "vet": "ベテラン", "veteran": "ベテラン", "ikemen": "イケメン", "ikejou": "イケジョ", "chibi": "リトル", "capeless": "羽なし",
-        "isle": "孤島", "isle of dawn": "孤島", "prairie": "草原", "daylight prairie": "草原", "forest": "雨林", "hidden forest": "雨林", "valley": "峡谷", "valley of triumph": "峡谷", "wasteland": "捨て地", "gw": "捨て地", "golden wasteland": "捨て地", "vault": "書庫", "vault of knowledge": "書庫", "eden": "原罪", "eye of eden": "原罪", "home": "ホーム", "aviary": "花鳥郷", "aviary village": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary": "楽園の島々", "sanctuary islands": "楽園", "prophecy": "予言の石窟", "cave of prophecies": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
-        "spirit": "精霊", "spirits": "精霊", "ts": "再訪精霊", "traveling spirit": "再訪する精霊", "elder": "大精霊", "elders": "大精霊", "krill": "暗黒竜(エビ)", "dark dragon": "暗黒竜", "krilled": "エビにタゲられた", "crab": "カニ", "crabs": "カニ", "creb": "カニ", "kreb": "カニ", "manta": "マンタ", "jellyfish": "クラゲ",
-        "candle": "キャンドル", "candles": "キャンドル", "heart": "ハート", "hearts": "ハート", "wl": "光の翼", "winged light": "光の翼", "wing buff": "翼のバフ", "ac": "星のキャンドル", "ascended candle": "星のキャンドル", "ascended candles": "星のキャンドル", "spell": "魔法", "spells": "魔法", "potion": "ポーション", "instrument": "楽器", "prop": "持ち物", "cape": "ケープ", "mask": "マスク", "hair": "ヘアスタイル", "pants": "パンツ", "outfit": "衣装", "cosmetics": "コスメ(アイテム)", "iap": "課金アイテム", "igc": "ゲーム内通貨",
-        "cr": "キャンマラ", "candle run": "キャンマラ", "hr": "ハート交換", "heart trade": "ハート交換", "wlr": "翼マラソン(羽集め)", "wl run": "翼マラソン", "geyser": "間欠泉", "grandma": "おばあちゃん", "turtle": "ウミガメ", "shards": "闇の破片", "shard eruption": "破片の噴出", "red shard": "赤石(赤い破片)", "black shard": "黒石(黒い破片)", "oob": "裏世界(OOB)", "out of bounds": "裏世界", "glitch": "バグ(すり抜け)", "honk": "鳴く", "honking": "大鳴き", "deep call": "大鳴き", "uber": "タクシー(引率)", "ubering": "引率するよ", "carry": "手をつなぐ(キャリー)", "warp": "ワープ", "tp": "テレポート", "merge": "サーバー統合", "server merge": "サーバー統合", "adopt": "保護する", "adopt a moth": "雀を拾う", "friend tree": "フレンドツリー", "constellation": "星座", "season": "季節", "ap": "アドパス", "adventure pass": "アドベンチャーパス", "season pass": "シーズンパス", "beta": "ベータ版", "live": "ライブ版", "moth drop": "雀を落とす",
-        "yessir": "了解です！", "yessum": "はいよ！", "kk": "おけおけ", "okey dokey": "おっけー！", "sure thing": "いいとも", "ofc": "当然", "obv": "明らかに", "defo": "絶対そう", "definitely": "間違いない",
-        "nah": "ううん", "nope": "いやいや", "naur": "ないってば", "naw": "ないわー", 
-        "heya": "やっほー", "hihi": "どもども", "sup": "調子どう？", "wassup": "うぃーっす", "howdy": "ちわー", "gm": "おはよ", "gn": "おやすみ", "bro": "兄弟", "bruh": "おいおい", "dude": "お前", "yall": "みんな", "fam": "仲間", "bestie": "親友",
+        "isle of dawn": "孤島", "isle": "孤島", "daylight prairie": "草原", "prairie": "草原", "hidden forest": "雨林", "forest": "雨林", "valley of triumph": "峡谷", "valley": "峡谷", "golden wasteland": "捨て地", "wasteland": "捨て地", "gw": "捨て地", "vault of knowledge": "書庫", "vault": "書庫", "eye of eden": "原罪", "eden": "原罪", "home": "ホーム", "aviary village": "花鳥郷", "aviary": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary islands": "楽園", "sanctuary": "楽園の島々", "cave of prophecies": "予言の石窟", "prophecy": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
+        "traveling spirit": "再訪する精霊", "ts": "再訪精霊", "spirits": "精霊", "spirit": "精霊", "elders": "大精霊", "elder": "大精霊", "dark dragon": "暗黒竜", "krilled": "エビにタゲられた", "krill": "暗黒竜(エビ)", "crabs": "カニ", "crab": "カニ", "creb": "カニ", "kreb": "カニ", "manta": "マンタ", "jellyfish": "クラゲ",
+        "ascended candles": "星のキャンドル", "ascended candle": "星のキャンドル", "ac": "星のキャンドル", "candles": "キャンドル", "candle": "キャンドル", "hearts": "ハート", "heart": "ハート", "winged light": "光の翼", "wl": "光の翼", "wing buff": "翼のバフ", "spells": "魔法", "spell": "魔法", "potion": "ポーション", "instrument": "楽器", "prop": "持ち物", "cape": "ケープ", "mask": "マスク", "hair": "ヘアスタイル", "pants": "パンツ", "outfit": "衣装", "cosmetics": "コスメ(アイテム)", "iap": "課金アイテム", "igc": "ゲーム内通貨",
+        "candle run": "キャンマラ", "cr": "キャンマラ", "heart trade": "ハート交換", "hr": "ハート交換", "wl run": "翼マラソン", "wlr": "翼マラソン(羽集め)", "geyser": "間欠泉", "grandma": "おばあちゃん", "turtle": "ウミガメ", "shard eruption": "破片の噴出", "shards": "闇の破片", "red shard": "赤石", "black shard": "黒石", "out of bounds": "裏世界", "oob": "裏世界(OOB)", "glitch": "バグ(すり抜け)", "honking": "大鳴き", "honk": "鳴く", "deep call": "大鳴き", "ubering": "引率するよ", "uber": "タクシー(引率)", "carry": "手をつなぐ", "warp": "ワープ", "tp": "テレポート", "server merge": "サーバー統合", "merge": "サーバー統合", "adopt a moth": "雀を拾う", "adopt": "保護する", "friend tree": "フレンドツリー", "constellation": "星座", "adventure pass": "アドベンチャーパス", "season pass": "シーズンパス", "season": "季節", "ap": "アドパス", "beta": "ベータ版", "live": "ライブ版", "moth drop": "雀を落とす",
+        "yessir": "了解です！", "yessum": "はいよ！", "okey dokey": "おっけー！", "kk": "おけおけ", "sure thing": "いいとも", "ofc": "当然", "obv": "明らかに", "definitely": "間違いない", "defo": "絶対そう",
+        "nope": "いやいや", "nah": "ううん", "naur": "ないってば", "naw": "ないわー", 
+        "heya": "やっほー", "hihi": "どもども", "wassup": "うぃーっす", "sup": "調子どう？", "howdy": "ちわー", "gm": "おはよ", "gn": "おやすみ", "bro": "兄弟", "bruh": "おいおい", "dude": "お前", "yall": "みんな", "fam": "仲間", "bestie": "親友",
         "cya": "またね", "buhbye": "じゃあね", "laters": "じゃあな", "ttyl": "後で話そう", "gtg": "もう行かなきゃ", "g2g": "抜けるね", "brb": "すぐ戻る", "bbl": "後で戻る", "bbs": "すぐ戻るね", "wb": "おかえり", "afk": "離席中", "brt": "すぐ行く", "gnight": "おやすみー", "peace out": "あばよ",
-        "lol": "笑", "lolz": "www", "lawl": "ワロタ", "lul": "草", "lmao": "爆笑", "kek": "草", "loool": "わろたああ",
+        "lolz": "www", "lol": "笑", "lawl": "ワロタ", "lul": "草", "lmao": "爆笑", "kek": "草", "loool": "わろたああ",
         "wtf": "は？何それ", "wth": "何なんだよ", "omfg": "マジかよ", "wdym": "どういう意味？", "yikes": "うわぁ", "oof": "うっ(ダメージ)", "rip": "ご愁傷様", "sus": "怪しい",
-        "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "tysm": "超ありがとう！", "tyvm": "本当にありがとう", "np": "問題ないよ", "yw": "どういたしまして", "sry": "ごめん", "srry": "ごめっ", "soz": "ごめーん", "mb": "ごめん私のミス", "my bad": "私のせいだ", "whoops": "あちゃー", "nvm": "どんまい！気にしないで", "nevermind": "やっぱいいや", "nw": "心配しないで", "no worries": "気にすんな",
-        "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prob": "たぶん", "prolly": "おそらく", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
+        "tyvm": "本当にありがとう", "tysm": "超ありがとう！", "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "np": "問題ないよ", "yw": "どういたしまして", "srry": "ごめっ", "sry": "ごめん", "soz": "ごめーん", "my bad": "私のせいだ", "mb": "ごめん私のミス", "whoops": "あちゃー", "nevermind": "やっぱいいや", "nvm": "どんまい！気にしないで", "no worries": "気にすんな", "nw": "心配しないで",
+        "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prolly": "おそらく", "prob": "たぶん", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
     };
 
-    // ★ 新レイアウト用の要素追加関数 ★
-    // 原文と翻訳文を一つの「グループ(枠)」に入れて表示する
     function appendTranslationGroup(originalText) {
         const groupDiv = document.createElement('div');
         groupDiv.className = 'translation-group';
 
-        // 1. 原文の表示（上段）
         const sentDiv = document.createElement('div');
         sentDiv.className = 'message sent';
         sentDiv.textContent = originalText;
         groupDiv.appendChild(sentDiv);
 
-        // 2. 翻訳中...の表示（下段）
         const receivedDiv = document.createElement('div');
         receivedDiv.className = 'message received loading';
         receivedDiv.textContent = '翻訳中...';
@@ -266,18 +254,11 @@
         messagesContainer.appendChild(groupDiv);
         messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
 
-        return receivedDiv; // 後で翻訳結果を入れるために、下段の要素を返す
+        return receivedDiv;
     }
 
-    async function translateText(text) {
-        let processedText = text;
-        const slangRegex = new RegExp(`\\b(${Object.keys(slangDictionary).join('|')})\\b`, 'gi');
-        processedText = processedText.replace(slangRegex, (match) => {
-            return ` ${slangDictionary[match.toLowerCase()]} `;
-        });
-
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ja&dt=t&q=${encodeURIComponent(processedText)}`;
-
+    async function fetchGoogleTranslation(text) {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('通信エラー');
@@ -299,17 +280,40 @@
     async function processTranslation(text) {
         if (!text) return;
         if (text === lastTranslatedText) return;
-        
         lastTranslatedText = text;
         
-        // 枠を作って原文を表示し、「翻訳中...」の要素を受け取る
         const resultDiv = appendTranslationGroup(text);
         
-        // 翻訳を実行
-        const translatedText = await translateText(text);
-        
-        // 「翻訳中...」の要素の中身を、実際の翻訳結果に書き換える
-        resultDiv.textContent = translatedText;
+        let processedText = text;
+        let placeholders = {};
+        let counter = 0;
+
+        const sortedSlangs = Object.keys(slangDictionary).sort((a, b) => b.length - a.length);
+
+        for (const slang of sortedSlangs) {
+            const regex = new RegExp(`\\b${slang}\\b`, 'gi');
+            if (regex.test(processedText)) {
+                const marker = `【${counter}】`;
+                placeholders[marker] = slangDictionary[slang];
+                processedText = processedText.replace(regex, marker);
+                counter++;
+            }
+        }
+
+        let finalTranslation = await fetchGoogleTranslation(processedText);
+
+        for (const[marker, meaning] of Object.entries(placeholders)) {
+            // 『』を外し、意味の文字列だけを直接挿入するように変更
+            const markerRegex = new RegExp(marker.replace('[', '\\[').replace(']', '\\]').replace(/(\d+)/, '\\s*$1\\s*'), 'g');
+            finalTranslation = finalTranslation.replace(markerRegex, meaning);
+            
+            // 万が一Googleが記号を消してしまった場合の保険
+            if (!finalTranslation.includes(meaning)) {
+                finalTranslation += `\n(※${meaning})`;
+            }
+        }
+
+        resultDiv.textContent = finalTranslation;
         resultDiv.classList.remove('loading');
     }
 
@@ -324,19 +328,16 @@
         }
     }
 
-    // 画面のどこかをクリック(マウスダウン)した瞬間
     document.addEventListener('mousedown', (e) => {
         if (e.target.tagName.toLowerCase() !== 'input') {
             readClipboardAndTranslate();
         }
     });
 
-    // ウィンドウがアクティブになった瞬間
     window.addEventListener('focus', () => {
         setTimeout(readClipboardAndTranslate, 100);
     });
 
-    // 手動入力での翻訳
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -360,7 +361,6 @@
             }
         }, 50);
     });
-
 </script>
 
 </body>
