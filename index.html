@@ -31,6 +31,8 @@
             justify-content: center;
             height: 100vh;
             overflow: hidden;
+            /* 画面全体をクリックできるようにカーソルを変更 */
+            cursor: pointer;
         }
 
         #chat-container {
@@ -61,7 +63,6 @@
             gap: 10px;
         }
 
-        /* ★ バージョン（日付）表示用のスタイル ★ */
         .version-date {
             font-size: 14px;
             color: #a0a0a5;
@@ -78,6 +79,7 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            cursor: default; /* メッセージエリアは通常のカーソルに戻す */
         }
 
         #messages::-webkit-scrollbar {
@@ -97,6 +99,7 @@
             white-space: pre-wrap;
             font-size: 20px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            cursor: text; /* 文字は選択できるように */
         }
 
         .sent {
@@ -130,6 +133,7 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            cursor: default;
         }
 
         #paste-btn {
@@ -144,9 +148,7 @@
             text-align: center;
             width: 100%;
             transition: opacity 0.2s;
-        }
-        #paste-btn:active {
-            opacity: 0.7;
+            pointer-events: none; /* 画面全体のクリックイベントを優先させるためにボタン自体の判定を消す */
         }
 
         .manual-input {
@@ -188,17 +190,19 @@
 <body>
 
 <div id="chat-container">
-    <!-- ★ ここに日付を追加しました ★ -->
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.21_02</span>
+        翻訳 <span class="version-date">v2026.04.23.2</span>
     </div>
     
     <div id="messages">
-        <div class="message received">青いボタンで自動翻訳</div>
+        <!-- 初期メッセージ -->
+        <div class="message received">画面のどこかをクリックするだけで自動翻訳</div>
     </div>
     
     <div id="input-area">
+        <!-- 見た目だけのボタン（機能は画面全体のクリックに統合） -->
         <button id="paste-btn">📋 コピーした文字を翻訳</button>
+        
         <div class="manual-input">
             <input type="text" id="input-text" placeholder="ここにペースト(Ctrl+V)してもOK...">
             <button id="send-btn">↑</button>
@@ -210,22 +214,33 @@
     const messagesContainer = document.getElementById('messages');
     const inputText = document.getElementById('input-text');
     const sendBtn = document.getElementById('send-btn');
-    const pasteBtn = document.getElementById('paste-btn');
 
-    // ★ 600語収録の特大ゲームスラング辞書 ★
+    // ★ 連続翻訳を防ぐための変数（直前に翻訳したテキストを記憶）★
+    let lastTranslatedText = "";
+
+    // ★ Sky 星を紡ぐ子どもたち (Sky: Children of the Light) 専用辞書 ★
     const slangDictionary = {
-        "yes": "はい", "yeah": "うん", "yea": "ああ", "yep": "うんうん", "yup": "おー", "yupp": "おっけ", "ya": "おう", "yah": "おうよ", "ye": "ん", "yeh": "うん", "yessir": "了解です！(Yessir)", "yessum": "はいよ！", "aye": "アイアイ", "affirmative": "了解(肯定)", "roger": "ラジャー", "roger that": "了解した", "copy": "コピー(了解)", "copy that": "受信した", "k": "おけ", "kk": "おけおけ", "ok": "おけ", "okay": "オッケー", "okey": "おけ丸", "okie": "おっけー", "okey dokey": "おっけー！", "sure": "もちろん", "sure thing": "いいとも", "ofc": "当然", "ofcourse": "もちろんさ", "obviously": "当たり前", "obv": "明らかに", "def": "絶対に", "defo": "絶対そう", "definitely": "間違いない", "indeed": "いかにも", "bet": "任せろ(賭けてもいい)", "fs": "間違いない(For sure)", "for sure": "確実だね", "totally": "完全に同意", "exactly": "その通り", "true": "たしかに", "fax": "それな(事実)", "facts": "マジでそれな",
-        "no": "いや", "nah": "ううん", "nope": "いやいや", "nay": "ないな", "naur": "ないってば", "negative": "否定する", "n": "んーん", "nein": "ない", "never": "絶対ない", "noway": "ありえない", "no way": "マジ無理", "nfw": "絶対にありえない", "naw": "ないわー", "bs": "でたらめだ(BS)", "bullshit": "クソみたいな嘘だ", "cap": "嘘だね", "capping": "嘘ついてる", "no cap": "マジで(嘘じゃない)", "false": "違う", "wrong": "間違ってる", "disagree": "賛成できない", "veto": "却下", "deny": "拒否する",
-        "hi": "やあ", "hello": "こんにちは", "hey": "おっす", "heya": "やっほー", "hihi": "どもども", "yo": "よぉ", "sup": "調子どう？", "wassup": "うぃーっす", "wuzup": "ちーっす", "howdy": "ちわー", "greetings": "よろしく", "gm": "おはよ", "gn": "おやすみ", "ga": "こんにちは", "ge": "こんばんは", "morning": "おは", "night": "おや", "bro": "兄弟", "bruh": "おいおい(呆れ/挨拶)", "dude": "お前", "man": "なあ", "guy": "やつ", "guys": "みんな", "yall": "お前ら", "fam": "仲間", "mate": "相棒", "m8": "相棒", "boi": "少年", "g": "アニキ", "dawg": "ダチ", "homie": "マイメン", "bestie": "親友", "chief": "ボス", "boss": "大将", "sir": "旦那",
-        "cya": "またね", "bye": "ばいばい", "bb": "ばいばーい", "buhbye": "じゃあね", "later": "また後で", "laters": "じゃあな", "ttyl": "後で話そう", "gtg": "もう行かなきゃ", "g2g": "抜けるね", "brb": "すぐ戻る", "bbl": "後で戻る", "bbs": "すぐ戻るね", "wb": "おかえり", "welcome back": "おかー", "afk": "離席中(AFK)", "brt": "すぐ行く", "gnight": "おやすみー", "sleep": "寝る", "bed": "ベッド行く", "peace": "じゃあな(Peace)", "peace out": "あばよ", "out": "抜ける", "im out": "俺は抜けるわ", "cya later": "またあとでね", "catch ya": "またな",
-        "lol": "笑", "lolz": "www", "lawl": "ワロタ", "lul": "草", "lulz": "大草原", "lmao": "爆笑", "lmaoo": "超爆笑", "lmfao": "クソワロタ", "rofl": "腹痛いwww", "roflmao": "笑い転げるwww", "kek": "草", "kekw": "ｗｗｗｗ", "xd": "😆", "xdd": "😂😂", "loool": "わろたああ", "haha": "ははは", "hahaha": "あははは！", "hehe": "へへっ", "fun": "おもろ", "funny": "ウケる", "hilarious": "クソおもろい",
-        "gg": "お疲れ！(GG)", "ggs": "お疲れ様！", "ggwp": "いい試合だった！お疲れ！", "wp": "上手いね！", "nj": "ナイスジョブ！", "gj": "グッジョブ！", "nt": "惜しい！(Nice try)", "nice try": "どんまい惜しかった", "n1": "ナイスワン！", "ns": "ナイスショット！", "gr8": "素晴らしい！", "great": "すげえ！", "awesome": "最高！", "sick": "ヤバすぎ！(褒め)", "insane": "エグい！", "crazy": "頭おかしい！(褒め)", "god": "神", "godly": "神がかってる", "goat": "史上最高！(GOAT)", "goated": "最強すぎる", "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "thanx": "サンキュー！", "tysm": "超ありがとう！", "tyvm": "本当にありがとう", "thanks": "サンクス", "appreciate it": "感謝するよ", "gl": "グッドラック！", "hf": "楽しんで！", "glhf": "よろしく！楽しもう！", "u2": "君もね", "np": "問題ないよ", "no prob": "全然おっけー", "yw": "どういたしまして", "anytime": "いつでもどうぞ", "clutch": "クラッチ！(神プレイ)", "carry": "キャリー", "hard carry": "超キャリー", "pro": "プロかよ", "beast": "野獣(凄すぎ)", "monster": "バケモンだな", "legend": "伝説だわ", "hero": "ヒーロー！", "mvp": "MVP！", "beautiful": "美しい", "perfect": "完璧", "clean": "綺麗なプレイ", "smooth": "スムーズだな", "crisp": "キレッキレ", "smurf": "スマーフ(サブ垢無双)", "smurfing": "サブ垢でボコってる",
-        "sry": "ごめん", "srry": "ごめっ", "sorry": "ごめんね", "soz": "ごめーん", "soza": "すまん！", "mb": "ごめん俺のミス", "my bad": "俺のせいだ", "my fault": "俺が悪かった", "oops": "おっと", "whoops": "あちゃー", "nvm": "どんまい！気にしないで", "nevermind": "やっぱいいや", "nw": "心配しないで", "no worries": "気にすんな", "all good": "全然オッケー", "it happens": "よくあることさ", "unlucky": "運が悪かったね", "unluko": "アンラッキー", "nt nt": "ナイスファイト！", "myb": "私のミス", "apologies": "謝罪する",
-        "wtf": "は？何それ", "wth": "何なんだよ", "tf": "なんだよ", "omg": "まじか", "omfg": "マジかよ", "wow": "うわお", "huh": "え？", "wait": "待って", "holup": "ちょい待ち", "hold up": "待て待て", "wdym": "どういう意味？", "how": "どうやって？", "why": "なんで？", "when": "いつ？", "where": "どこ？", "who": "誰？", "what": "何？", "wat": "は？", "wut": "ん？", "bruh moment": "呆れるわ", "yikes": "うわぁ(ドン引き)", "oof": "うっ(ダメージ)", "rip": "ご愁傷様(RIP)", "f": "哀悼(F)", "press f": "合掌", "sus": "怪しい(Sus)", "sussy": "うさんくさい", "imposter": "偽物", "confused": "混乱してる", "lost": "迷子(わけわからん)",
-        "stfu": "黙れ", "gtfo": "出てけ", "fml": "最悪だ", "smh": "あーあ(呆れ)", "ffs": "勘弁してくれ", "cmon": "頼むよー", "come on": "おいおい", "noob": "初心者め", "n00b": "ド素人", "newb": "初心者", "nab": "雑魚", "bot": "BOTかよ", "trash": "ゴミ", "dogshit": "クソエイム", "garbage": "カス", "kid": "ガキが", "ez": "余裕だったな", "ezpz": "ちょろいね", "ez clap": "楽勝", "freelo": "タダモラ", "diff": "実力差やばい", "jg diff": "ジャングル差", "mid diff": "ミッド差", "top diff": "トップ差", "bot diff": "ボット差", "supp diff": "サポ差", "aim diff": "エイム差", "brain diff": "脳みそ差", "skill issue": "スキルの問題だな", "mad": "怒ってんの？", "stay mad": "一生怒ってろ", "cry": "泣けよ", "cry about it": "泣いてろ", "cope": "言い訳乙", "seethe": "顔真っ赤", "mald": "ハゲ上がりそう", "malding": "ブチギレてて草", "touch grass": "外へ出ろ(現実見ろ)", "get a life": "人生やり直せ", "sucks": "クソだな", "suck": "へたくそ", "throw": "戦犯", "throwing": "わざと負けてる？", "troll": "荒らし", "trolling": "ふざけてる", "int": "意図的なトロール(利敵)", "inting": "わざと死んでる", "griefing": "利敵行為", "toxic": "有害", "salty": "イライラしてんな", "salt": "塩対応", "tilt": "ティルト(キレてる)", "tilted": "ブチギレ状態", "choke": "チョーク(やらかし)", "choked": "やらかしたわ", "feeder": "エサ(敵にキル献上)", "feeding": "敵育ててる", "boosted": "ブースティング(代行)か？", "braindead": "脳死", "idiot": "バカ", "moron": "アホ", "stupid": "マヌケ", "dumb": "アホくさ", "l": "負け(L)", "take the l": "負けを認めろ", "bozo": "マヌケ野郎", "clown": "ピエロかよ", "carried": "キャリーされた(寄生)",
-        "1hp": "敵ミリ残り！", "one tap": "あと一発で倒せる！", "low": "敵ロー！", "lit": "敵激ロー！", "one shot": "敵ワンショ！", "cracked": "シールド割った！", "broken": "アーマー割れた！", "half": "敵体力半分！", "full": "敵体力MAX", "healed": "回復した", "healing": "回復中", "rez": "蘇生して！", "revive": "起こして！", "dead": "死んだ", "down": "ダウンさせた！", "knocked": "ノックした！", "wipe": "全滅させた！", "wiped": "部隊壊滅", "lag": "ラグい", "lagging": "カクカクする", "ping": "ピン", "high ping": "ピン高い", "spike": "ラグスパイク", "dc": "切断された(DC)", "disconnect": "落ちた", "fps": "フレームレート", "drop": "武器落として/降りる", "loot": "漁る", "looting": "漁り中", "mats": "資材", "ammo": "弾", "need ammo": "弾くれ", "need gun": "武器ない", "heal": "回復", "shield": "シールド", "pot": "ポーション", "buff": "バフ", "nerf": "ナーフ", "op": "強すぎ(OP)", "meta": "環境(メタ)", "hp": "体力", "mp": "マナ", "cd": "クールダウン中", "ult": "ウルト", "ultimate": "アルティメット", "ability": "アビリティ", "spell": "呪文", "flash": "フラッシュ", "tp": "テレポート", "smite": "スマイト", "exhaust": "イグゾースト", "ignite": "イグナイト", "cleanse": "クレンズ", "barrier": "バリア", "ghost": "ゴースト", "ward": "ワード", "vision": "視界", "gank": "ガンク(奇襲)", "ganking": "奇襲行く", "mia": "敵見失った(MIA)", "missing": "敵消えた", "ss": "敵消えた(SS)", "care": "気をつけて！", "danger": "危険！", "safe": "安全", "clear": "クリア(敵なし)", "enemy": "敵", "hostile": "敵対", "ally": "味方", "team": "チーム", "squad": "スクワッド", "party": "パーティ", "solo": "ソロ", "duo": "デュオ", "trio": "トリオ", "quad": "クアッド", "ace": "エース(全滅)", "ar": "アサルト", "smg": "サブマシンガン", "sg": "ショットガン", "sr": "スナイパー", "lmg": "ライトマシンガン", "hg": "ハンドガン", "nade": "グレネード", "smoke": "スモーク", "molly": "モロトフ(炎)", "util": "スキル(アビリティ)",
-        "omw": "今向かってる！", "on my way": "向かってる途中", "inc": "敵来るぞ！", "incoming": "敵接近！", "b": "引け！(Back)", "back": "下がれ！", "fall back": "後退して！", "push": "突っ込もう！", "pushing": "詰めてる！", "rush": "ラッシュ！", "rush b": "Bラッシュ！", "def": "守れ！(Defend)", "defend": "防衛して！", "hold": "そこキープ！", "camp": "キャンプ(待ち伏せ)", "camping": "芋ってる", "camper": "芋", "flank": "裏取り", "flanking": "裏回ってる", "rotate": "移動(ローテート)して", "rotating": "移動中", "split": "分かれよう", "group": "集まって！", "group up": "集合！", "stack": "固まろう", "spread": "散開して！", "cover": "カバーして！", "cover me": "援護頼む！", "need backup": "応援求む！", "help": "助けて！", "top": "トップ", "mid": "ミッド", "bottom": "ボトム", "jg": "ジャングル", "jungle": "ジャングル", "supp": "サポ", "support": "サポート", "adc": "ADC(キャリー)", "tank": "タンク", "dps": "アタッカー(DPS)", "flanker": "フランカー", "sniper": "スナイパー", "healer": "ヒーラー", "site": "サイト", "base": "拠点", "spawn": "リスポーン", "flanked": "裏取られた！", "pinned": "釘付けにされてる", "trapped": "罠にはまった", "stuck": "スタックした(動けない)", "behind": "後ろ！", "front": "前！", "left": "左！", "right": "右！", "above": "上！", "below": "下！",
-        "fr": "マジで", "for real": "本当に", "ngl": "ぶっちゃけ", "not gonna lie": "嘘偽りなく", "tbh": "正直言って", "to be honest": "正直なところ", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "i don't care": "どうでもいい", "ik": "知ってる", "ikr": "だよね！", "i know right": "それな！", "rn": "今すぐ", "right now": "たった今", "asap": "なる早で", "fyi": "参考までに", "btw": "ところで", "by the way": "そういえば", "based": "わかってるね(称賛)", "cringe": "イタい", "cringey": "ドン引き", "simp": "貢ぐやつ(シンプ)", "simping": "媚びてる", "chad": "イケてるやつ", "gigachad": "超イケメン", "alpha": "アルファ(強者)", "beta": "ベータ(弱者)", "sigma": "シグマ(一匹狼)", "ratio": "論破", "w": "勝ち(W)", "dub": "勝利", "irl": "現実世界で", "in real life": "リアルで", "w/e": "なんでもいいや", "whatever": "どうでもいい", "smth": "何か", "something": "なにか", "nothin": "何もない", "nothing": "別に", "bc": "なぜなら", "b/c": "だってさ", "bcz": "というのも", "cuz": "だって", "cus": "なぜならね", "cause": "理由として", "because": "なぜかというと", "pls": "お願い", "plz": "たのむ", "plox": "頼むー", "please": "プリーズ", "srly": "マジで？", "seriously": "本気で？", "prob": "たぶん", "prolly": "おそらく", "probably": "たぶんね", "maybe": "もしかして", "kinda": "なんか", "kind of": "ある意味", "sorta": "ちょっと", "sort of": "そんな感じ", "dunno": "知らん", "gimme": "くれ", "lemme": "させて", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ", "outta": "ここから出る", "much": "とても", "very": "めっちゃ", "too": "すぎる", "af": "死ぬほど(AF)", "asf": "クソほど", "dat": "あの", "dis": "この", "dem": "あいつら", "them": "彼ら", "u": "お前", "you": "君", "ur": "お前の", "your": "君の", "urs": "お前のもの", "yours": "君のもの", "r": "だね", "are": "です", "c": "見る", "see": "わかった", "y": "なんで"
+        // --- Sky: キャラクター・プレイヤー層 ---
+        "skykid": "星の子", "skid": "星の子", "moth": "雀(初心者)", "moths": "雀たち", "butterfly": "蝶(中級者)", "vet": "ベテラン", "veteran": "ベテラン", "ikemen": "イケメン", "ikejou": "イケジョ", "chibi": "リトル", "capeless": "羽なし",
+        // --- Sky: エリア・場所 ---
+        "isle": "孤島", "isle of dawn": "孤島", "prairie": "草原", "daylight prairie": "草原", "forest": "雨林", "hidden forest": "雨林", "valley": "峡谷", "valley of triumph": "峡谷", "wasteland": "捨て地", "gw": "捨て地", "golden wasteland": "捨て地", "vault": "書庫", "vault of knowledge": "書庫", "eden": "原罪", "eye of eden": "原罪", "home": "ホーム", "aviary": "花鳥郷", "aviary village": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary": "楽園の島々", "sanctuary islands": "楽園", "prophecy": "予言の石窟", "cave of prophecies": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
+        // --- Sky: 精霊・生物 ---
+        "spirit": "精霊", "spirits": "精霊", "ts": "再訪精霊", "traveling spirit": "再訪する精霊", "elder": "大精霊", "elders": "大精霊", "krill": "暗黒竜(エビ)", "dark dragon": "暗黒竜", "krilled": "エビにタゲられた", "crab": "カニ", "crabs": "カニ", "creb": "カニ", "kreb": "カニ", "manta": "マンタ", "jellyfish": "クラゲ",
+        // --- Sky: アイテム・通貨・魔法 ---
+        "candle": "キャンドル", "candles": "キャンドル", "heart": "ハート", "hearts": "ハート", "wl": "光の翼", "winged light": "光の翼", "wing buff": "翼のバフ", "ac": "星のキャンドル", "ascended candle": "星のキャンドル", "ascended candles": "星のキャンドル", "spell": "魔法", "spells": "魔法", "potion": "ポーション", "instrument": "楽器", "prop": "持ち物", "cape": "ケープ", "mask": "マスク", "hair": "ヘアスタイル", "pants": "パンツ", "outfit": "衣装", "cosmetics": "コスメ(アイテム)", "iap": "課金アイテム", "igc": "ゲーム内通貨",
+        // --- Sky: アクション・プレイスタイル ---
+        "cr": "キャンマラ", "candle run": "キャンマラ", "hr": "ハート交換", "heart trade": "ハート交換", "wlr": "翼マラソン(羽集め)", "wl run": "翼マラソン", "geyser": "間欠泉", "grandma": "おばあちゃん", "turtle": "ウミガメ", "shards": "闇の破片", "shard eruption": "破片の噴出", "red shard": "赤石(赤い破片)", "black shard": "黒石(黒い破片)", "oob": "裏世界(OOB)", "out of bounds": "裏世界", "glitch": "バグ(すり抜け)", "honk": "鳴く", "honking": "大鳴き", "deep call": "大鳴き", "uber": "タクシー(引率)", "ubering": "引率するよ", "carry": "手をつなぐ(キャリー)", "warp": "ワープ", "tp": "テレポート", "merge": "サーバー統合", "server merge": "サーバー統合", "adopt": "保護する", "adopt a moth": "雀を拾う", "friend tree": "フレンドツリー", "constellation": "星座", "season": "季節", "ap": "アドパス", "adventure pass": "アドベンチャーパス", "season pass": "シーズンパス", "beta": "ベータ版", "live": "ライブ版", "moth drop": "雀を落とす",
+        // --- 挨拶・相槌・日常の略語 ---
+        "yessir": "了解です！", "yessum": "はいよ！", "kk": "おけおけ", "okey dokey": "おっけー！", "sure thing": "いいとも", "ofc": "当然", "obv": "明らかに", "defo": "絶対そう", "definitely": "間違いない",
+        "nah": "ううん", "nope": "いやいや", "naur": "ないってば", "naw": "ないわー", 
+        "heya": "やっほー", "hihi": "どもども", "sup": "調子どう？", "wassup": "うぃーっす", "howdy": "ちわー", "gm": "おはよ", "gn": "おやすみ", "bro": "兄弟", "bruh": "おいおい", "dude": "お前", "yall": "みんな", "fam": "仲間", "bestie": "親友",
+        "cya": "またね", "buhbye": "じゃあね", "laters": "じゃあな", "ttyl": "後で話そう", "gtg": "もう行かなきゃ", "g2g": "抜けるね", "brb": "すぐ戻る", "bbl": "後で戻る", "bbs": "すぐ戻るね", "wb": "おかえり", "afk": "離席中", "brt": "すぐ行く", "gnight": "おやすみー", "peace out": "あばよ",
+        // --- 笑い・驚き・感謝 ---
+        "lol": "笑", "lolz": "www", "lawl": "ワロタ", "lul": "草", "lmao": "爆笑", "kek": "草", "loool": "わろたああ",
+        "wtf": "は？何それ", "wth": "何なんだよ", "omfg": "マジかよ", "wdym": "どういう意味？", "yikes": "うわぁ", "oof": "うっ(ダメージ)", "rip": "ご愁傷様", "sus": "怪しい",
+        "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "tysm": "超ありがとう！", "tyvm": "本当にありがとう", "np": "問題ないよ", "yw": "どういたしまして", "sry": "ごめん", "srry": "ごめっ", "soz": "ごめーん", "mb": "ごめん私のミス", "my bad": "私のせいだ", "whoops": "あちゃー", "nvm": "どんまい！気にしないで", "nevermind": "やっぱいいや", "nw": "心配しないで", "no worries": "気にすんな",
+        // --- ネットスラング ---
+        "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prob": "たぶん", "prolly": "おそらく", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
     };
 
     function appendMessage(text, type) {
@@ -240,7 +255,7 @@
     async function translateText(text) {
         let processedText = text;
         
-        // 辞書の一括高速置換（何万件あっても一瞬で終わる書き方）
+        // 辞書の単語を検索して置換
         const slangRegex = new RegExp(`\\b(${Object.keys(slangDictionary).join('|')})\\b`, 'gi');
         processedText = processedText.replace(slangRegex, (match) => {
             return ` ${slangDictionary[match.toLowerCase()]} `;
@@ -266,8 +281,15 @@
         }
     }
 
+    // ★ 翻訳処理のメイン関数（重複チェックを追加） ★
     async function processTranslation(text) {
         if (!text) return;
+        
+        // 同じテキストを連続で翻訳しようとした場合は無視（1クリックで複数回発火するのを防ぐ）
+        if (text === lastTranslatedText) return;
+        
+        lastTranslatedText = text; // 今回翻訳したテキストを記憶
+        
         appendMessage(text, 'sent');
         const loadingMsg = appendMessage('翻訳中...', 'received loading');
         const translatedText = await translateText(text);
@@ -275,21 +297,40 @@
         appendMessage(translatedText, 'received');
     }
 
-    // ★ ボタンクリックでの翻訳 ★
-    pasteBtn.addEventListener('click', async () => {
+    // ★ クリップボードから読み取って翻訳を実行する関数 ★
+    async function readClipboardAndTranslate() {
         try {
             const text = await navigator.clipboard.readText();
-            if (!text || text.trim() === '') {
-                alert('クリップボードが空です。テキストをコピーしてから押してください。');
-                return;
+            if (text && text.trim() !== '') {
+                processTranslation(text.trim());
             }
-            processTranslation(text.trim());
         } catch (err) {
-            alert('ブラウザのセキュリティ制限で読み取れませんでした。下の入力欄にペースト(Ctrl+V)してください。');
+            console.log("クリップボードの読み取りがブロックされました", err);
+        }
+    }
+
+    // ==========================================
+    // ★ 1クリックでアクティブ化＆自動翻訳の仕組み ★
+    // ==========================================
+
+    // 【1】画面の「どこか」をクリック(マウスダウン)した瞬間に翻訳を走らせる
+    document.addEventListener('mousedown', (e) => {
+        // もし手動入力欄（input）をクリックした場合は文字入力の邪魔をしないように除外
+        if (e.target.tagName.toLowerCase() !== 'input') {
+            readClipboardAndTranslate();
         }
     });
 
-    // ★ 手動入力・エンターキーでの翻訳 ★
+    // 【2】ウィンドウが裏(非アクティブ)から表(アクティブ)になった瞬間に翻訳を走らせる
+    window.addEventListener('focus', () => {
+        // OS側の準備が整うまで少しだけ(0.1秒)遅らせて実行する
+        setTimeout(readClipboardAndTranslate, 100);
+    });
+
+    // ==========================================
+    // 手動入力・エンターキーでの翻訳（予備機能）
+    // ==========================================
+    
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -297,19 +338,20 @@
             inputText.value = '';
         }
     });
+    
     inputText.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             sendBtn.click();
         }
     });
 
-    // ★ 【追加機能】入力欄にペースト(Ctrl+V)した瞬間、自動で翻訳する ★
+    // 入力欄に直接ペースト(Ctrl+V)した場合の自動送信
     inputText.addEventListener('paste', () => {
         setTimeout(() => {
             const text = inputText.value.trim();
             if (text) {
                 processTranslation(text);
-                inputText.value = ''; // 翻訳が始まったら入力欄を空にする
+                inputText.value = '';
             }
         }, 50);
     });
