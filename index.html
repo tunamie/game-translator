@@ -194,7 +194,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.23.4</span>
+        翻訳 <span class="version-date">v2026.04.25</span>
     </div>
     
     <div id="messages">
@@ -207,7 +207,8 @@
     <div id="input-area">
         <button id="paste-btn">📋 コピーした文字を翻訳</button>
         <div class="manual-input">
-            <input type="text" id="input-text" placeholder="ここにペースト(Ctrl+V)してもOK...">
+            <!-- 文字数制限 maxlength="100" を追加 -->
+            <input type="text" id="input-text" placeholder="ここにペースト(Ctrl+V)してもOK..." maxlength="100">
             <button id="send-btn">↑</button>
         </div>
     </div>
@@ -219,6 +220,21 @@
     const sendBtn = document.getElementById('send-btn');
 
     let lastTranslatedText = "";
+    let lastRequestTime = 0; // 連続投稿制御用のタイマー変数
+
+    // ★ XSS対策（入力されたHTMLタグを無害な文字に変換する関数）
+    function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, function(match) {
+            const escape = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            };
+            return escape[match];
+        });
+    }
 
     // ★ Sky 星を紡ぐ子どもたち 専用辞書 ★
     const slangDictionary = {
@@ -243,7 +259,7 @@
 
         const sentDiv = document.createElement('div');
         sentDiv.className = 'message sent';
-        sentDiv.textContent = originalText;
+        sentDiv.textContent = originalText; // すでに無害化されたテキストが入る
         groupDiv.appendChild(sentDiv);
 
         const receivedDiv = document.createElement('div');
@@ -279,12 +295,26 @@
 
     async function processTranslation(text) {
         if (!text) return;
-        if (text === lastTranslatedText) return;
-        lastTranslatedText = text;
+
+        // ★ 連投対策：1.5秒以内の連続リクエストは無視する
+        const now = Date.now();
+        if (now - lastRequestTime < 1500) {
+            return;
+        }
+        lastRequestTime = now;
+
+        // ★ XSS対策：悪意のある入力記号を無害化する
+        const safeText = escapeHTML(text);
+
+        // 重複チェック
+        if (safeText === lastTranslatedText) return;
+        lastTranslatedText = safeText;
         
-        const resultDiv = appendTranslationGroup(text);
+        // 原文には無害化された安全なテキストを使用
+        const resultDiv = appendTranslationGroup(safeText);
         
-        let processedText = text;
+        // 翻訳処理（プレースホルダー方式）
+        let processedText = safeText;
         let placeholders = {};
         let counter = 0;
 
@@ -303,11 +333,9 @@
         let finalTranslation = await fetchGoogleTranslation(processedText);
 
         for (const[marker, meaning] of Object.entries(placeholders)) {
-            // 『』を外し、意味の文字列だけを直接挿入するように変更
             const markerRegex = new RegExp(marker.replace('[', '\\[').replace(']', '\\]').replace(/(\d+)/, '\\s*$1\\s*'), 'g');
             finalTranslation = finalTranslation.replace(markerRegex, meaning);
             
-            // 万が一Googleが記号を消してしまった場合の保険
             if (!finalTranslation.includes(meaning)) {
                 finalTranslation += `\n(※${meaning})`;
             }
@@ -321,23 +349,34 @@
         try {
             const text = await navigator.clipboard.readText();
             if (text && text.trim() !== '') {
-                processTranslation(text.trim());
+                let trimmedText = text.trim();
+                
+                // ★ 100文字制限チェック
+                if (trimmedText.length > 100) {
+                    alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + trimmedText.length + '文字)');
+                    return;
+                }
+                
+                processTranslation(trimmedText);
             }
         } catch (err) {
             console.log("クリップボードの読み取りがブロックされました", err);
         }
     }
 
+    // 画面クリック時の自動翻訳
     document.addEventListener('mousedown', (e) => {
         if (e.target.tagName.toLowerCase() !== 'input') {
             readClipboardAndTranslate();
         }
     });
 
+    // ウィンドウアクティブ時の自動翻訳
     window.addEventListener('focus', () => {
         setTimeout(readClipboardAndTranslate, 100);
     });
 
+    // 手動入力での翻訳
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -352,9 +391,20 @@
         }
     });
 
-    inputText.addEventListener('paste', () => {
+    // ペースト時の自動翻訳（文字数制限つき）
+    inputText.addEventListener('paste', (e) => {
+        // ペーストされたデータを取得
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+        
+        // ★ ペースト時も100文字制限をチェック
+        if (pasteData.length > 100) {
+            e.preventDefault(); // ペースト自体をキャンセル
+            alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + pasteData.length + '文字)');
+            return;
+        }
+
         setTimeout(() => {
-            const text = inputText.value.trim();
+            let text = inputText.value.trim();
             if (text) {
                 processTranslation(text);
                 inputText.value = '';
