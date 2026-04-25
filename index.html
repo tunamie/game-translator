@@ -194,7 +194,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.25</span>
+        翻訳 <span class="version-date">v2026.04.25.2</span>
     </div>
     
     <div id="messages">
@@ -207,7 +207,6 @@
     <div id="input-area">
         <button id="paste-btn">📋 コピーした文字を翻訳</button>
         <div class="manual-input">
-            <!-- 文字数制限 maxlength="100" を追加 -->
             <input type="text" id="input-text" placeholder="ここにペースト(Ctrl+V)してもOK..." maxlength="100">
             <button id="send-btn">↑</button>
         </div>
@@ -220,9 +219,10 @@
     const sendBtn = document.getElementById('send-btn');
 
     let lastTranslatedText = "";
-    let lastRequestTime = 0; // 連続投稿制御用のタイマー変数
+    let lastRequestTime = 0; // 連続投稿制御用
+    let lastErrorText = ""; // アラートの無限ループ防止用
 
-    // ★ XSS対策（入力されたHTMLタグを無害な文字に変換する関数）
+    // XSS対策（サニタイズ関数）
     function escapeHTML(str) {
         return str.replace(/[&<>'"]/g, function(match) {
             const escape = {
@@ -236,7 +236,7 @@
         });
     }
 
-    // ★ Sky 星を紡ぐ子どもたち 専用辞書 ★
+    // Sky 星を紡ぐ子どもたち 専用辞書
     const slangDictionary = {
         "skykid": "星の子", "skid": "星の子", "moth": "雀(初心者)", "moths": "雀たち", "butterfly": "蝶(中級者)", "vet": "ベテラン", "veteran": "ベテラン", "ikemen": "イケメン", "ikejou": "イケジョ", "chibi": "リトル", "capeless": "羽なし",
         "isle of dawn": "孤島", "isle": "孤島", "daylight prairie": "草原", "prairie": "草原", "hidden forest": "雨林", "forest": "雨林", "valley of triumph": "峡谷", "valley": "峡谷", "golden wasteland": "捨て地", "wasteland": "捨て地", "gw": "捨て地", "vault of knowledge": "書庫", "vault": "書庫", "eye of eden": "原罪", "eden": "原罪", "home": "ホーム", "aviary village": "花鳥郷", "aviary": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary islands": "楽園", "sanctuary": "楽園の島々", "cave of prophecies": "予言の石窟", "prophecy": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
@@ -259,7 +259,7 @@
 
         const sentDiv = document.createElement('div');
         sentDiv.className = 'message sent';
-        sentDiv.textContent = originalText; // すでに無害化されたテキストが入る
+        sentDiv.textContent = originalText;
         groupDiv.appendChild(sentDiv);
 
         const receivedDiv = document.createElement('div');
@@ -296,30 +296,28 @@
     async function processTranslation(text) {
         if (!text) return;
 
-        // ★ 連投対策：1.5秒以内の連続リクエストは無視する
+        // 連投対策（1.5秒以内は無視）
         const now = Date.now();
         if (now - lastRequestTime < 1500) {
             return;
         }
         lastRequestTime = now;
 
-        // ★ XSS対策：悪意のある入力記号を無害化する
+        // XSS対策（無害化）
         const safeText = escapeHTML(text);
 
-        // 重複チェック
         if (safeText === lastTranslatedText) return;
         lastTranslatedText = safeText;
         
-        // 原文には無害化された安全なテキストを使用
         const resultDiv = appendTranslationGroup(safeText);
         
-        // 翻訳処理（プレースホルダー方式）
         let processedText = safeText;
         let placeholders = {};
         let counter = 0;
 
         const sortedSlangs = Object.keys(slangDictionary).sort((a, b) => b.length - a.length);
 
+        // プレースホルダーに置換
         for (const slang of sortedSlangs) {
             const regex = new RegExp(`\\b${slang}\\b`, 'gi');
             if (regex.test(processedText)) {
@@ -332,6 +330,7 @@
 
         let finalTranslation = await fetchGoogleTranslation(processedText);
 
+        // 日本語に復元
         for (const[marker, meaning] of Object.entries(placeholders)) {
             const markerRegex = new RegExp(marker.replace('[', '\\[').replace(']', '\\]').replace(/(\d+)/, '\\s*$1\\s*'), 'g');
             finalTranslation = finalTranslation.replace(markerRegex, meaning);
@@ -351,12 +350,16 @@
             if (text && text.trim() !== '') {
                 let trimmedText = text.trim();
                 
-                // ★ 100文字制限チェック
                 if (trimmedText.length > 100) {
-                    alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + trimmedText.length + '文字)');
+                    // アラートの無限ループを防止
+                    if (trimmedText !== lastErrorText) {
+                        lastErrorText = trimmedText;
+                        alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + trimmedText.length + '文字)');
+                    }
                     return;
                 }
                 
+                lastErrorText = ""; // 正常な場合はエラー記憶をリセット
                 processTranslation(trimmedText);
             }
         } catch (err) {
@@ -364,19 +367,19 @@
         }
     }
 
-    // 画面クリック時の自動翻訳
+    // 画面クリックで自動翻訳
     document.addEventListener('mousedown', (e) => {
         if (e.target.tagName.toLowerCase() !== 'input') {
             readClipboardAndTranslate();
         }
     });
 
-    // ウィンドウアクティブ時の自動翻訳
+    // ウィンドウアクティブで自動翻訳
     window.addEventListener('focus', () => {
         setTimeout(readClipboardAndTranslate, 100);
     });
 
-    // 手動入力での翻訳
+    // 手動ボタン送信
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -385,20 +388,19 @@
         }
     });
     
+    // Enterキー送信
     inputText.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             sendBtn.click();
         }
     });
 
-    // ペースト時の自動翻訳（文字数制限つき）
+    // ペースト時の処理
     inputText.addEventListener('paste', (e) => {
-        // ペーストされたデータを取得
         const pasteData = (e.clipboardData || window.clipboardData).getData('text');
         
-        // ★ ペースト時も100文字制限をチェック
         if (pasteData.length > 100) {
-            e.preventDefault(); // ペースト自体をキャンセル
+            e.preventDefault();
             alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + pasteData.length + '文字)');
             return;
         }
