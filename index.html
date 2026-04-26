@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>翻訳チャット</title>
+    
+    <!-- ★ Content Security Policy (CSP) : Google翻訳API以外の怪しい通信を完全ブロック ★ -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self' https://translate.googleapis.com;
+        font-src 'self';
+        img-src 'self' data:;
+        base-uri 'self';
+        form-action 'self';
+    ">
+    
     <style>
         /* Appleダークモードのカラーパレット */
         :root {
@@ -122,6 +135,7 @@
         .loading {
             opacity: 0.6;
             font-size: 14px;
+            color: #ff9f0a; /* システムメッセージ等は目立つ色に */
         }
 
         #input-area {
@@ -194,7 +208,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.25.2</span>
+        翻訳 <span class="version-date">v2026.04.26</span>
     </div>
     
     <div id="messages">
@@ -219,8 +233,15 @@
     const sendBtn = document.getElementById('send-btn');
 
     let lastTranslatedText = "";
-    let lastRequestTime = 0; // 連続投稿制御用
+    let lastRequestTime = 0; // 短期的な連投無視タイマー
     let lastErrorText = ""; // アラートの無限ループ防止用
+
+    // ★ 高度な連投制限（トークンバケット）用の変数
+    const MAX_TOKENS = 10; // 最大チケット枚数
+    let tokens = MAX_TOKENS; // 現在のチケット枚数
+    let lastTokenUpdateTime = Date.now(); // 最後にチケットを回復した時間
+    let cooldownUntil = 0; // クールダウン終了時刻
+    let isCooldownNotified = false; // クールダウン中の警告を1回だけ出すフラグ
 
     // XSS対策（サニタイズ関数）
     function escapeHTML(str) {
@@ -252,6 +273,15 @@
         "tyvm": "本当にありがとう", "tysm": "超ありがとう！", "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "np": "問題ないよ", "yw": "どういたしまして", "srry": "ごめっ", "sry": "ごめん", "soz": "ごめーん", "my bad": "私のせいだ", "mb": "ごめん私のミス", "whoops": "あちゃー", "nevermind": "やっぱいいや", "nvm": "どんまい！気にしないで", "no worries": "気にすんな", "nw": "心配しないで",
         "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prolly": "おそらく", "prob": "たぶん", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
     };
+
+    function appendMessage(text, type) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${type}`;
+        msgDiv.textContent = text;
+        messagesContainer.appendChild(msgDiv);
+        messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+        return msgDiv;
+    }
 
     function appendTranslationGroup(originalText) {
         const groupDiv = document.createElement('div');
@@ -289,19 +319,49 @@
             return translatedText.trim();
         } catch (error) {
             console.error(error);
-            return 'エラー: 翻訳できませんでした。';
+            return 'エラー: 翻訳サーバーに接続できませんでした。';
         }
     }
 
     async function processTranslation(text) {
         if (!text) return;
 
-        // 連投対策（1.5秒以内は無視）
         const now = Date.now();
+
+        // 1. クールダウン（3分間ペナルティ）中かどうかの確認
+        if (now < cooldownUntil) {
+            if (!isCooldownNotified) {
+                const remainingSec = Math.ceil((cooldownUntil - now) / 1000);
+                appendMessage(`⚠️ スパム防止のため一時的に翻訳を制限しています。\nあと ${remainingSec} 秒お待ちください。`, 'received loading');
+                isCooldownNotified = true;
+            }
+            return;
+        }
+
+        // 2. 短期的な誤操作防止（1.5秒以内の連打はチケットを消費せず無視）
         if (now - lastRequestTime < 1500) {
             return;
         }
         lastRequestTime = now;
+
+        // 3. チケットの自動回復処理（10秒で1枚回復）
+        const elapsed = now - lastTokenUpdateTime;
+        const restoreAmount = Math.floor(elapsed / 10000);
+        if (restoreAmount > 0) {
+            tokens = Math.min(MAX_TOKENS, tokens + restoreAmount);
+            lastTokenUpdateTime = now - (elapsed % 10000);
+        }
+
+        // 4. チケットの消費とクールダウン発動判定
+        if (tokens > 0) {
+            tokens--;
+            isCooldownNotified = false;
+        } else {
+            cooldownUntil = now + 180000; // 3分間のペナルティ
+            appendMessage(`🚫 【警告】異常な連続リクエストを検知しました。\nGoogleサーバー保護のため、3分間翻訳を停止します。`, 'received loading');
+            isCooldownNotified = true;
+            return;
+        }
 
         // XSS対策（無害化）
         const safeText = escapeHTML(text);
@@ -340,8 +400,12 @@
             }
         }
 
+        // 成功したら表示を更新
         resultDiv.textContent = finalTranslation;
         resultDiv.classList.remove('loading');
+        
+        // CSSの色をリセット（警告用の黄色を取り除く）
+        resultDiv.style.color = 'var(--msg-received-text)';
     }
 
     async function readClipboardAndTranslate() {
@@ -351,7 +415,6 @@
                 let trimmedText = text.trim();
                 
                 if (trimmedText.length > 100) {
-                    // アラートの無限ループを防止
                     if (trimmedText !== lastErrorText) {
                         lastErrorText = trimmedText;
                         alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + trimmedText.length + '文字)');
@@ -359,7 +422,7 @@
                     return;
                 }
                 
-                lastErrorText = ""; // 正常な場合はエラー記憶をリセット
+                lastErrorText = "";
                 processTranslation(trimmedText);
             }
         } catch (err) {
