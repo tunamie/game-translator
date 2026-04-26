@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>翻訳チャット</title>
     
-    <!-- ★ Content Security Policy (CSP) : Google翻訳API以外の怪しい通信を完全ブロック ★ -->
+    <!-- Content Security Policy (CSP) : Google翻訳API以外の怪しい通信を完全ブロック -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline';
@@ -208,7 +208,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.04.26</span>
+        翻訳 <span class="version-date">v2026.04.26.2</span>
     </div>
     
     <div id="messages">
@@ -236,12 +236,12 @@
     let lastRequestTime = 0; // 短期的な連投無視タイマー
     let lastErrorText = ""; // アラートの無限ループ防止用
 
-    // ★ 高度な連投制限（トークンバケット）用の変数
+    // 高度な連投制限（トークンバケット）用の変数
     const MAX_TOKENS = 10; // 最大チケット枚数
     let tokens = MAX_TOKENS; // 現在のチケット枚数
     let lastTokenUpdateTime = Date.now(); // 最後にチケットを回復した時間
     let cooldownUntil = 0; // クールダウン終了時刻
-    let isCooldownNotified = false; // クールダウン中の警告を1回だけ出すフラグ
+    let isCooldownNotified = false; // クールダウン中の警告フラグ
 
     // XSS対策（サニタイズ関数）
     function escapeHTML(str) {
@@ -326,6 +326,30 @@
     async function processTranslation(text) {
         if (!text) return;
 
+        // ★ 日本語のみ（＋例外アルファベット）の文章かどうかの事前判定
+        const allowedEnglishWords =['sky', 'ok', 'gg', 'ty', 'thx', 'np', 'brb'];
+        let checkText = text.toLowerCase();
+        
+        // 例外英単語を削り取る
+        for (const word of allowedEnglishWords) {
+            checkText = checkText.split(word).join('');
+        }
+        // 日本人が笑いとして使う「w」の連続を削り取る
+        checkText = checkText.replace(/w+/g, '');
+        
+        // 残ったテキストの中にアルファベット(a-z)が「1文字も含まれていない」場合
+        if (!/[a-z]/.test(checkText)) {
+            // 日本語の文章と判定し、通信せずそのまま表示する
+            if (text === lastTranslatedText) return;
+            lastTranslatedText = text;
+            const resultDiv = appendTranslationGroup(escapeHTML(text));
+            resultDiv.textContent = text;
+            resultDiv.classList.remove('loading');
+            resultDiv.style.color = 'var(--msg-received-text)';
+            return;
+        }
+
+        // --- 外国語が含まれていた場合の処理 ---
         const now = Date.now();
 
         // 1. クールダウン（3分間ペナルティ）中かどうかの確認
@@ -403,8 +427,6 @@
         // 成功したら表示を更新
         resultDiv.textContent = finalTranslation;
         resultDiv.classList.remove('loading');
-        
-        // CSSの色をリセット（警告用の黄色を取り除く）
         resultDiv.style.color = 'var(--msg-received-text)';
     }
 
