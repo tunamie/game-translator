@@ -208,7 +208,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.05.02.1</span>
+        翻訳 <span class="version-date">v2026.05.02.2</span>
     </div>
     
     <div id="messages">
@@ -237,41 +237,65 @@
     let lastErrorText = ""; // アラートの無限ループ防止用
 
     // 高度な連投制限（トークンバケット）用の変数
-    const MAX_TOKENS = 10; // 最大チケット枚数
-    let tokens = MAX_TOKENS; // 現在のチケット枚数
-    let lastTokenUpdateTime = Date.now(); // 最後にチケットを回復した時間
-    let cooldownUntil = 0; // クールダウン終了時刻
-    let isCooldownNotified = false; // クールダウン中の警告フラグ
+    const MAX_TOKENS = 10; 
+    let tokens = MAX_TOKENS; 
+    let lastTokenUpdateTime = Date.now(); 
+    let cooldownUntil = 0; 
+    let isCooldownNotified = false; 
 
     // XSS対策（サニタイズ関数）
     function escapeHTML(str) {
         return str.replace(/[&<>'"]/g, function(match) {
-            const escape = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            };
+            const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
             return escape[match];
         });
     }
 
-    // Sky 星を紡ぐ子どもたち 専用辞書
-    const slangDictionary = {
-        "skykid": "星の子", "skid": "星の子", "mothy": "雀ちゃん(初心者)", "moths": "雀たち", "moth": "雀(初心者)", "butterfly": "蝶(中級者)", "vet": "ベテラン", "veteran": "ベテラン", "ikemen": "イケメン", "ikejou": "イケジョ", "chibi": "リトル", "capeless": "羽なし",
-        "isle of dawn": "孤島", "isle": "孤島", "daylight prairie": "草原", "prairie": "草原", "hidden forest": "雨林", "forest": "雨林", "valley of triumph": "峡谷", "valley": "峡谷", "golden wasteland": "捨て地", "wasteland": "捨て地", "gw": "捨て地", "vault of knowledge": "書庫", "vault": "書庫", "eye of eden": "原罪", "eden": "原罪", "home": "ホーム", "aviary village": "花鳥郷", "aviary": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary islands": "楽園", "sanctuary": "楽園の島々", "cave of prophecies": "予言の石窟", "prophecy": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
-        "traveling spirit": "再訪する精霊", "ts": "再訪精霊", "spirits": "精霊", "spirit": "精霊", "elders": "大精霊", "elder": "大精霊", "dark dragon": "暗黒竜", "krilled": "エビにタゲられた", "krill": "暗黒竜(エビ)", "crabs": "カニ", "crab": "カニ", "creb": "カニ", "kreb": "カニ", "manta": "マンタ", "jellyfish": "クラゲ",
-        "ascended candles": "星のキャンドル", "ascended candle": "星のキャンドル", "ac": "星のキャンドル", "candles": "キャンドル", "candle": "キャンドル", "hearts": "ハート", "heart": "ハート", "winged light": "光の翼", "wl": "光の翼", "wing buff": "翼のバフ", "spells": "魔法", "spell": "魔法", "potion": "ポーション", "instrument": "楽器", "prop": "持ち物", "cape": "ケープ", "mask": "マスク", "hair": "ヘアスタイル", "pants": "パンツ", "outfit": "衣装", "cosmetics": "コスメ(アイテム)", "iap": "課金アイテム", "igc": "ゲーム内通貨",
-        "candle run": "キャンマラ", "cr": "キャンマラ", "heart trade": "ハート交換", "hr": "ハート交換", "wl run": "翼マラソン", "wlr": "翼マラソン(羽集め)", "geyser": "間欠泉", "grandma": "おばあちゃん", "turtle": "ウミガメ", "shard eruption": "破片の噴出", "shards": "闇の破片", "red shard": "赤石", "black shard": "黒石", "out of bounds": "裏世界", "oob": "裏世界(OOB)", "glitch": "バグ(すり抜け)", "honking": "大鳴き", "honk": "鳴く", "deep call": "大鳴き", "ubering": "引率するよ", "uber": "タクシー(引率)", "carry": "手をつなぐ", "warp": "ワープ", "tp": "テレポート", "server merge": "サーバー統合", "merge": "サーバー統合", "adopt a moth": "雀を拾う", "adopt": "保護する", "friend tree": "フレンドツリー", "constellation": "星座", "adventure pass": "アドベンチャーパス", "season pass": "シーズンパス", "season": "季節", "ap": "アドパス", "beta": "ベータ版", "live": "ライブ版", "moth drop": "雀を落とす",
-        "yessir": "了解です！", "yessum": "はいよ！", "okey dokey": "おっけー！", "kk": "おけおけ", "sure thing": "いいとも", "ofc": "当然", "obv": "明らかに", "definitely": "間違いない", "defo": "絶対そう",
-        "nope": "いやいや", "nah": "ううん", "naur": "ないってば", "naw": "ないわー", 
-        "heya": "やっほー", "hihi": "どもども", "wassup": "うぃーっす", "sup": "調子どう？", "howdy": "ちわー", "gm": "おはよ", "gn": "おやすみ", "bro": "兄弟", "bruh": "おいおい", "dude": "お前", "yall": "みんな", "fam": "仲間", "bestie": "親友",
-        "cya": "またね", "buhbye": "じゃあね", "laters": "じゃあな", "ttyl": "後で話そう", "gtg": "もう行かなきゃ", "g2g": "抜けるね", "brb": "すぐ戻る", "bbl": "後で戻る", "bbs": "すぐ戻るね", "wb": "おかえり", "afk": "離席中", "brt": "すぐ行く", "gnight": "おやすみー", "peace out": "あばよ",
-        "lolz": "www", "lol": "笑", "lawl": "ワロタ", "lul": "草", "lmao": "爆笑", "kek": "草", "loool": "わろたああ",
-        "wtf": "は？何それ", "wth": "何なんだよ", "omfg": "マジかよ", "wdym": "どういう意味？", "yikes": "うわぁ", "oof": "うっ(ダメージ)", "rip": "ご愁傷様", "sus": "怪しい",
-        "tyvm": "本当にありがとう", "tysm": "超ありがとう！", "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "np": "問題ないよ", "yw": "どういたしまして", "srry": "ごめっ", "sry": "ごめん", "soz": "ごめーん", "my bad": "私のせいだ", "mb": "ごめん私のミス", "whoops": "あちゃー", "nevermind": "やっぱいいや", "nvm": "どんまい！気にしないで", "no worries": "気にすんな", "nw": "心配しないで",
-        "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prolly": "おそらく", "prob": "たぶん", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
+    // ★ Sky 事後置換（ポスト・プロセッシング）辞書 ★
+    // Google翻訳が出力しがちな「おかしな直訳」を、正しいゲーム用語に置換します
+    const postTranslationDictionary = {
+        // --- キャラクター関連 ---
+        "蛾たち": "雀たち",
+        "蛾": "雀(初心者)",
+        "モシー": "雀ちゃん(初心者)",
+        "チビ": "リトル",
+        "ハゲ": "羽なし",
+        
+        // --- 精霊・生物関連 ---
+        "旅行の精神": "再訪する精霊",
+        "移動精神": "再訪する精霊",
+        "旅行精霊": "再訪精霊",
+        "精神": "精霊",
+        "霊": "精霊",
+        "長老": "大精霊",
+        "暗黒の竜": "暗黒竜(エビ)",
+        "ダークドラゴン": "暗黒竜(エビ)",
+        "クリルされた": "エビにタゲられた",
+        "クリル": "暗黒竜(エビ)",
+        "マンタレイ": "マンタ",
+        
+        // --- 行動・スラング ---
+        "クラクションを鳴らして": "鳴いて",
+        "クラクションを鳴らし": "鳴き",
+        "クラクションを鳴らす": "鳴く",
+        "クラクション": "鳴き声",
+        "深く鳴く": "大鳴き",
+        "キャンドルラン": "キャンマラ",
+        "ハートトレード": "ハート交換",
+        "翼のラン": "翼マラソン(羽集め)",
+        "境界外": "裏世界",
+        "範囲外": "裏世界(OOB)",
+        "蛾を採用する": "雀を拾う",
+        
+        // --- Googleが訳せない略語そのままの対応 ---
+        "ts": "再訪精霊",
+        "cr": "キャンマラ",
+        "gw": "捨て地",
+        "oob": "裏世界",
+        "afk": "離席中",
+        "hr": "ハート交換",
+        "wlr": "翼マラソン(羽集め)",
+        "wl": "光の翼"
     };
 
     function appendMessage(text, type) {
@@ -327,19 +351,15 @@
         if (!text) return;
 
         // ★ 日本語のみ（＋例外アルファベット）の文章かどうかの事前判定
-        const allowedEnglishWords =['sky', 'ok', 'gg', 'ty', 'thx', 'np', 'brb'];
+        const allowedEnglishWords = ['sky', 'ok', 'gg', 'ty', 'thx', 'np', 'brb'];
         let checkText = text.toLowerCase();
         
-        // 例外英単語を削り取る
         for (const word of allowedEnglishWords) {
             checkText = checkText.split(word).join('');
         }
-        // 日本人が笑いとして使う「w」の連続を削り取る
         checkText = checkText.replace(/w+/g, '');
         
-        // 残ったテキストの中にアルファベット(a-z)が「1文字も含まれていない」場合
         if (!/[a-z]/.test(checkText)) {
-            // 日本語の文章と判定し、通信せずそのまま表示する
             if (text === lastTranslatedText) return;
             lastTranslatedText = text;
             const resultDiv = appendTranslationGroup(escapeHTML(text));
@@ -352,7 +372,6 @@
         // --- 外国語が含まれていた場合の処理 ---
         const now = Date.now();
 
-        // 1. クールダウン（3分間ペナルティ）中かどうかの確認
         if (now < cooldownUntil) {
             if (!isCooldownNotified) {
                 const remainingSec = Math.ceil((cooldownUntil - now) / 1000);
@@ -362,13 +381,9 @@
             return;
         }
 
-        // 2. 短期的な誤操作防止（1.5秒以内の連打はチケットを消費せず無視）
-        if (now - lastRequestTime < 1500) {
-            return;
-        }
+        if (now - lastRequestTime < 1500) return;
         lastRequestTime = now;
 
-        // 3. チケットの自動回復処理（10秒で1枚回復）
         const elapsed = now - lastTokenUpdateTime;
         const restoreAmount = Math.floor(elapsed / 10000);
         if (restoreAmount > 0) {
@@ -376,18 +391,16 @@
             lastTokenUpdateTime = now - (elapsed % 10000);
         }
 
-        // 4. チケットの消費とクールダウン発動判定
         if (tokens > 0) {
             tokens--;
             isCooldownNotified = false;
         } else {
-            cooldownUntil = now + 180000; // 3分間のペナルティ
+            cooldownUntil = now + 180000;
             appendMessage(`🚫 【警告】異常な連続リクエストを検知しました。\nGoogleサーバー保護のため、3分間翻訳を停止します。`, 'received loading');
             isCooldownNotified = true;
             return;
         }
 
-        // XSS対策（無害化）
         const safeText = escapeHTML(text);
 
         if (safeText === lastTranslatedText) return;
@@ -395,33 +408,18 @@
         
         const resultDiv = appendTranslationGroup(safeText);
         
-        let processedText = safeText;
-        let placeholders = {};
-        let counter = 0;
+        // 1. 原文をそのままGoogle翻訳に投げて、文法を100%保ったままの日本語を得る
+        let finalTranslation = await fetchGoogleTranslation(safeText);
 
-        const sortedSlangs = Object.keys(slangDictionary).sort((a, b) => b.length - a.length);
+        // 2. 翻訳された日本語の中から、おかしな直訳を正しいSky用語へ置換
+        // (長い単語から順に置換して、短い単語の誤作動を防ぐ)
+        const sortedKeys = Object.keys(postTranslationDictionary).sort((a, b) => b.length - a.length);
 
-        // プレースホルダーに置換（文脈崩壊を防ぐため、固有名詞風のマーカーを使用）
-        for (const slang of sortedSlangs) {
-            const regex = new RegExp(`\\b${slang}\\b`, 'gi');
-            if (regex.test(processedText)) {
-                const marker = `ZZZ${counter}ZZZ`;
-                placeholders[marker] = slangDictionary[slang];
-                processedText = processedText.replace(regex, marker);
-                counter++;
-            }
-        }
-
-        let finalTranslation = await fetchGoogleTranslation(processedText);
-
-        // 日本語に復元（マーカー前後の余分なスペースごと置換する）
-        for (const[marker, meaning] of Object.entries(placeholders)) {
-            const markerRegex = new RegExp(`\\s*${marker}\\s*`, 'g');
-            finalTranslation = finalTranslation.replace(markerRegex, meaning);
-            
-            // 万が一Googleがマーカーを消してしまった場合の保険
-            if (!finalTranslation.includes(meaning)) {
-                finalTranslation += `\n(※${meaning})`;
+        for (const key of sortedKeys) {
+            // 大文字・小文字を区別せず、文字列全体から検索して置換する
+            const regex = new RegExp(key, 'gi');
+            if (regex.test(finalTranslation)) {
+                finalTranslation = finalTranslation.replace(regex, postTranslationDictionary[key]);
             }
         }
 
@@ -453,19 +451,16 @@
         }
     }
 
-    // 画面クリックで自動翻訳
     document.addEventListener('mousedown', (e) => {
         if (e.target.tagName.toLowerCase() !== 'input') {
             readClipboardAndTranslate();
         }
     });
 
-    // ウィンドウアクティブで自動翻訳
     window.addEventListener('focus', () => {
         setTimeout(readClipboardAndTranslate, 100);
     });
 
-    // 手動ボタン送信
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -474,14 +469,12 @@
         }
     });
     
-    // Enterキー送信
     inputText.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             sendBtn.click();
         }
     });
 
-    // ペースト時の処理
     inputText.addEventListener('paste', (e) => {
         const pasteData = (e.clipboardData || window.clipboardData).getData('text');
         
