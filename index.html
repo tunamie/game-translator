@@ -208,7 +208,7 @@
 
 <div id="chat-container">
     <div id="header">
-        翻訳 <span class="version-date">v2026.05.04.1</span>
+        翻訳 <span class="version-date">v2026.05.04.2</span>
     </div>
     
     <div id="messages">
@@ -221,7 +221,6 @@
     <div id="input-area">
         <button id="paste-btn">📋 コピーした文字を翻訳</button>
         <div class="manual-input">
-            <!-- 100文字制限 -->
             <input type="text" id="input-text" placeholder="ここにペースト(Ctrl+V)してもOK..." maxlength="100">
             <button id="send-btn">↑</button>
         </div>
@@ -234,50 +233,241 @@
     const sendBtn = document.getElementById('send-btn');
 
     let lastTranslatedText = "";
-    let lastRequestTime = 0; // 短期的な連投無視タイマー
-    let lastErrorText = ""; // アラートの無限ループ防止用
+    let lastRequestTime = 0; // 短期連投無視タイマー
+    let lastErrorText = ""; // アラート無限ループ防止
 
     // 高度な連投制限（トークンバケット）用の変数
-    const MAX_TOKENS = 10; // 最大チケット枚数
-    let tokens = MAX_TOKENS; // 現在のチケット枚数
-    let lastTokenUpdateTime = Date.now(); // 最後にチケットを回復した時間
-    let cooldownUntil = 0; // クールダウン終了時刻
-    let isCooldownNotified = false; // クールダウン中の警告フラグ
+    const MAX_TOKENS = 10;
+    let tokens = MAX_TOKENS;
+    let lastTokenUpdateTime = Date.now();
+    let cooldownUntil = 0;
+    let isCooldownNotified = false;
 
-    // XSS対策（サニタイズ関数）
+    // XSS対策
     function escapeHTML(str) {
         return str.replace(/[&<>'"]/g, function(match) {
-            const escape = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            };
+            const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
             return escape[match];
         });
     }
 
-    // ★ 1. 事前置換辞書（名詞・日常略語用）★
-    // Googleに翻訳されると語順が変わってしまう名詞や、文法に影響しない略語を登録
+    // ★ 1. 事前置換辞書（ダミーネーム方式）★
+    // 記号ではなく「誰もが知っている英語のダミー単語（人名など）」に置き換え、Googleの文法解釈を完璧に助ける
+    // 配列の中身：[ "ダミー英単語", "Googleが訳すダミーの日本語", "最終的に表示したい本来の意味" ]
     const slangDictionary = {
-        "skykid": "星の子", "skid": "星の子", "mothy": "雀ちゃん(初心者)", "moths": "雀たち", "moth": "雀(初心者)", "butterfly": "蝶(中級者)", "vet": "ベテラン", "veteran": "ベテラン", "ikemen": "イケメン", "ikejou": "イケジョ", "chibi": "リトル", "capeless": "羽なし",
-        "isle of dawn": "孤島", "isle": "孤島", "daylight prairie": "草原", "prairie": "草原", "hidden forest": "雨林", "forest": "雨林", "valley of triumph": "峡谷", "valley": "峡谷", "golden wasteland": "捨て地", "wasteland": "捨て地", "gw": "捨て地", "vault of knowledge": "書庫", "vault": "書庫", "eye of eden": "原罪", "eden": "原罪", "home": "ホーム", "aviary village": "花鳥郷", "aviary": "花鳥郷", "office": "オフィス", "orbit": "天空", "sanctuary islands": "楽園", "sanctuary": "楽園の島々", "cave of prophecies": "予言の石窟", "prophecy": "予言の石窟", "trials": "試練", "water trial": "水の試練", "earth trial": "地の試練", "air trial": "風の試練", "fire trial": "火の試練", "treehouse": "大樹の巣", "starlight desert": "星月夜の砂漠", "village of dreams": "夢見の町",
-        "traveling spirit": "再訪する精霊", "ts": "再訪精霊", "spirits": "精霊", "spirit": "精霊", "elders": "大精霊", "elder": "大精霊", "dark dragon": "暗黒竜", "krill": "暗黒竜(エビ)", "crabs": "カニ", "crab": "カニ", "creb": "カニ", "kreb": "カニ", "manta": "マンタ", "jellyfish": "クラゲ",
-        "ascended candles": "星のキャンドル", "ascended candle": "星のキャンドル", "ac": "星のキャンドル", "candles": "キャンドル", "candle": "キャンドル", "hearts": "ハート", "heart": "ハート", "winged light": "光の翼", "wl": "光の翼", "wing buff": "翼のバフ", "spells": "魔法", "spell": "魔法", "potion": "ポーション", "instrument": "楽器", "prop": "持ち物", "cape": "ケープ", "mask": "マスク", "hair": "ヘアスタイル", "pants": "パンツ", "outfit": "衣装", "cosmetics": "コスメ(アイテム)", "iap": "課金アイテム", "igc": "ゲーム内通貨",
-        "candle run": "キャンマラ", "cr": "キャンマラ", "heart trade": "ハート交換", "hr": "ハート交換", "wl run": "翼マラソン", "wlr": "翼マラソン(羽集め)", "geyser": "間欠泉", "grandma": "おばあちゃん", "turtle": "ウミガメ", "shard eruption": "破片の噴出", "shards": "闇の破片", "red shard": "赤石", "black shard": "黒石", "out of bounds": "裏世界", "oob": "裏世界(OOB)", "glitch": "バグ(すり抜け)", "server merge": "サーバー統合", "merge": "サーバー統合", "adopt a moth": "雀を拾う", "adopt": "保護する", "friend tree": "フレンドツリー", "constellation": "星座", "adventure pass": "アドベンチャーパス", "season pass": "シーズンパス", "season": "季節", "ap": "アドパス", "beta": "ベータ版", "live": "ライブ版", "moth drop": "雀を落とす",
-        "yessir": "了解です！", "yessum": "はいよ！", "okey dokey": "おっけー！", "kk": "おけおけ", "sure thing": "いいとも", "ofc": "当然", "obv": "明らかに", "definitely": "間違いない", "defo": "絶対そう",
-        "nope": "いやいや", "nah": "ううん", "naur": "ないってば", "naw": "ないわー", 
-        "heya": "やっほー", "hihi": "どもども", "wassup": "うぃーっす", "sup": "調子どう？", "howdy": "ちわー", "gm": "おはよ", "gn": "おやすみ", "bro": "兄弟", "bruh": "おいおい", "dude": "お前", "yall": "みんな", "fam": "仲間", "bestie": "親友",
-        "cya": "またね", "buhbye": "じゃあね", "laters": "じゃあな", "ttyl": "後で話そう", "gtg": "もう行かなきゃ", "g2g": "抜けるね", "brb": "すぐ戻る", "bbl": "後で戻る", "bbs": "すぐ戻るね", "wb": "おかえり", "afk": "離席中", "brt": "すぐ行く", "gnight": "おやすみー", "peace out": "あばよ",
-        "lolz": "www", "lol": "笑", "lawl": "ワロタ", "lul": "草", "lmao": "爆笑", "kek": "草", "loool": "わろたああ",
-        "wtf": "は？何それ", "wth": "何なんだよ", "omfg": "マジかよ", "wdym": "どういう意味？", "yikes": "うわぁ", "oof": "うっ(ダメージ)", "rip": "ご愁傷様", "sus": "怪しい",
-        "tyvm": "本当にありがとう", "tysm": "超ありがとう！", "ty": "ありがとう", "thx": "ありがとう", "thnx": "サンクス！", "np": "問題ないよ", "yw": "どういたしまして", "srry": "ごめっ", "sry": "ごめん", "soz": "ごめーん", "my bad": "私のせいだ", "mb": "ごめん私のミス", "whoops": "あちゃー", "nevermind": "やっぱいいや", "nvm": "どんまい！気にしないで", "no worries": "気にすんな", "nw": "心配しないで",
-        "fr": "マジで", "ngl": "ぶっちゃけ", "tbh": "正直言って", "imo": "個人的には", "imho": "ぶっちゃけ私の意見だと", "afaik": "私の知る限りでは", "idk": "わからん", "idc": "気にしない", "ik": "知ってる", "ikr": "だよね！", "rn": "今すぐ", "asap": "なる早で", "btw": "ところで", "smth": "何か", "bc": "なぜなら", "cuz": "だって", "pls": "お願い", "plz": "たのむ", "prolly": "おそらく", "prob": "たぶん", "kinda": "なんか", "dunno": "知らん", "wanna": "したい", "gonna": "するつもり", "gotta": "しなきゃ"
+        "skykid":["Alice", "アリス", "星の子"],
+        "skid": ["Alice", "アリス", "星の子"],
+        "mothy":["Bob", "ボブ", "雀ちゃん(初心者)"],
+        "moths":["Bobs", "ボブたち", "雀たち"],
+        "moth": ["Bob", "ボブ", "雀(初心者)"],
+        "butterfly":["Charlie", "チャーリー", "蝶(中級者)"],
+        "vet": ["Dave", "デイブ", "ベテラン"],
+        "veteran": ["Dave", "デイブ", "ベテラン"],
+        "ikemen": ["Eve", "イブ", "イケメン"],
+        "ikejou":["Eve", "イブ", "イケジョ"],
+        "chibi": ["Frank", "フランク", "リトル"],
+        "capeless": ["Grace", "グレース", "羽なし"],
+        "isle of dawn":["Isle", "アイル", "孤島"],
+        "isle": ["Isle", "アイル", "孤島"],
+        "daylight prairie": ["Prairie", "大草原", "草原"],
+        "prairie":["Prairie", "プレーリー", "草原"],
+        "hidden forest": ["Forest", "森", "雨林"],
+        "forest": ["Forest", "森", "雨林"],
+        "valley of triumph":["Valley", "谷", "峡谷"],
+        "valley": ["Valley", "谷", "峡谷"],
+        "golden wasteland":["Wasteland", "荒れ地", "捨て地"],
+        "wasteland":["Wasteland", "荒れ地", "捨て地"],
+        "gw": ["Wasteland", "荒れ地", "捨て地"],
+        "vault of knowledge": ["Vault", "金庫室", "書庫"],
+        "vault":["Vault", "金庫室", "書庫"],
+        "eye of eden": ["Eden", "エデン", "原罪"],
+        "eden": ["Eden", "エデン", "原罪"],
+        "home":["Home", "家", "ホーム"],
+        "aviary village":["Aviary", "鳥小屋", "花鳥郷"],
+        "aviary": ["Aviary", "鳥小屋", "花鳥郷"],
+        "office": ["Office", "オフィス", "オフィス"],
+        "orbit": ["Orbit", "軌道", "天空"],
+        "sanctuary islands": ["Sanctuary", "聖域", "楽園の島々"],
+        "sanctuary": ["Sanctuary", "聖域", "楽園"],
+        "cave of prophecies": ["Cave", "洞窟", "予言の石窟"],
+        "prophecy":["Cave", "洞窟", "予言の石窟"],
+        "trials": ["Trials", "裁判", "試練"],
+        "water trial": ["Water", "水", "水の試練"],
+        "earth trial":["Earth", "地球", "地の試練"],
+        "air trial": ["Air", "空気", "風の試練"],
+        "fire trial": ["Fire", "火", "火の試練"],
+        "treehouse":["Treehouse", "ツリーハウス", "大樹の巣"],
+        "starlight desert":["Desert", "砂漠", "星月夜の砂漠"],
+        "village of dreams":["Village", "村", "夢見の町"],
+        "traveling spirit": ["Spirit", "精神", "再訪する精霊"],
+        "ts":["Spirit", "精神", "再訪精霊"],
+        "spirits": ["Spirits", "精霊", "精霊"],
+        "spirit": ["Spirit", "精神", "精霊"],
+        "elders":["Elders", "長老", "大精霊"],
+        "elder": ["Elder", "長老", "大精霊"],
+        "dark dragon": ["Dragon", "ドラゴン", "暗黒竜"],
+        "krill":["Dragon", "ドラゴン", "暗黒竜(エビ)"],
+        "crabs": ["Crabs", "カニ", "カニ"],
+        "crab":["Crab", "カニ", "カニ"],
+        "creb":["Crab", "カニ", "カニ"],
+        "kreb": ["Crab", "カニ", "カニ"],
+        "manta": ["Manta", "マンタ", "マンタ"],
+        "jellyfish":["Jellyfish", "クラゲ", "クラゲ"],
+        "ascended candles":["Ruby", "ルビー", "星のキャンドル"],
+        "ascended candle":["Ruby", "ルビー", "星のキャンドル"],
+        "ac": ["Ruby", "ルビー", "星のキャンドル"],
+        "candles":["Candles", "キャンドル", "キャンドル"],
+        "candle":["Candle", "キャンドル", "キャンドル"],
+        "hearts": ["Hearts", "ハーツ", "ハート"],
+        "heart":["Heart", "ハート", "ハート"],
+        "winged light": ["Light", "光", "光の翼"],
+        "wl":["Light", "光", "光の翼"],
+        "wing buff":["Buff", "バフ", "翼のバフ"],
+        "spells": ["Spells", "呪文", "魔法"],
+        "spell": ["Spell", "呪文", "魔法"],
+        "potion":["Potion", "ポーション", "ポーション"],
+        "instrument": ["Instrument", "楽器", "楽器"],
+        "prop":["Prop", "小道具", "持ち物"],
+        "cape":["Cape", "ケープ", "ケープ"],
+        "mask": ["Mask", "マスク", "マスク"],
+        "hair":["Hair", "髪", "ヘアスタイル"],
+        "pants": ["Pants", "パンツ", "パンツ"],
+        "outfit":["Outfit", "衣装", "衣装"],
+        "cosmetics": ["Cosmetics", "化粧品", "コスメ(アイテム)"],
+        "iap": ["Ticket", "切符", "課金アイテム"],
+        "igc":["Coin", "コイン", "ゲーム内通貨"],
+        "candle run": ["Marathon", "マラソン", "キャンマラ"],
+        "cr":["Marathon", "マラソン", "キャンマラ"],
+        "heart trade": ["Trade", "貿易", "ハート交換"],
+        "hr": ["Trade", "貿易", "ハート交換"],
+        "wl run":["Run", "走る", "翼マラソン"],
+        "wlr": ["Run", "走る", "翼マラソン(羽集め)"],
+        "geyser": ["Geyser", "間欠泉", "間欠泉"],
+        "grandma": ["Grandma", "おばあちゃん", "おばあちゃん"],
+        "turtle":["Turtle", "カメ", "ウミガメ"],
+        "shard eruption":["Eruption", "噴火", "破片の噴出"],
+        "shards":["Shards", "破片", "闇の破片"],
+        "red shard": ["Red", "赤", "赤石"],
+        "black shard": ["Black", "黒", "黒石"],
+        "out of bounds":["Secret", "秘密", "裏世界"],
+        "oob":["Secret", "秘密", "裏世界(OOB)"],
+        "glitch": ["Bug", "バグ", "バグ(すり抜け)"],
+        "server merge": ["Merge", "マージ", "サーバー統合"],
+        "merge":["Merge", "マージ", "サーバー統合"],
+        "adopt a moth": ["Adopt", "採用する", "雀を拾う"],
+        "adopt": ["Adopt", "採用する", "保護する"],
+        "friend tree":["Tree", "木", "フレンドツリー"],
+        "constellation": ["Star", "星", "星座"],
+        "adventure pass":["Pass", "パス", "アドベンチャーパス"],
+        "season pass": ["Pass", "パス", "シーズンパス"],
+        "season":["Season", "季節", "季節"],
+        "ap": ["Pass", "パス", "アドパス"],
+        "beta":["Beta", "ベータ版", "ベータ版"],
+        "live": ["Live", "住む", "ライブ版"],
+        "moth drop": ["Drop", "落とす", "雀を落とす"],
+        
+        // 日常略語（文法を壊さないもの）
+        "yessir":["Yes", "はい", "了解です！"],
+        "yessum": ["Yes", "はい", "はいよ！"],
+        "okey dokey": ["Ok", "わかりました", "おっけー！"],
+        "kk":["Ok", "わかりました", "おけおけ"],
+        "sure thing": ["Sure", "もちろん", "いいとも"],
+        "ofc": ["Sure", "もちろん", "当然"],
+        "obv":["Sure", "もちろん", "明らかに"],
+        "definitely": ["Sure", "もちろん", "間違いない"],
+        "defo": ["Sure", "もちろん", "絶対そう"],
+        "nope":["No", "いいえ", "いやいや"],
+        "nah": ["No", "いいえ", "ううん"],
+        "naur": ["No", "いいえ", "ないってば"],
+        "naw":["No", "いいえ", "ないわー"], 
+        "heya": ["Hi", "やあ", "やっほー"],
+        "hihi": ["Hi", "やあ", "どもども"],
+        "wassup":["Hi", "やあ", "うぃーっす"],
+        "sup":["Hi", "やあ", "調子どう？"],
+        "howdy": ["Hi", "やあ", "ちわー"],
+        "gm":["Morning", "朝", "おはよ"],
+        "gn":["Night", "夜", "おやすみ"],
+        "bro": ["Brother", "兄", "兄弟"],
+        "bruh":["Brother", "兄", "おいおい"],
+        "dude": ["Friend", "友人", "お前"],
+        "yall": ["Friends", "友達", "みんな"],
+        "fam": ["Family", "家族", "仲間"],
+        "bestie": ["Bestie", "親友", "親友"],
+        "cya":["Bye", "さようなら", "またね"],
+        "buhbye":["Bye", "さようなら", "じゃあね"],
+        "laters": ["Bye", "さようなら", "じゃあな"],
+        "ttyl":["Bye", "さようなら", "後で話そう"],
+        "gtg":["Bye", "さようなら", "もう行かなきゃ"],
+        "g2g":["Bye", "さようなら", "抜けるね"],
+        "brb": ["Wait", "待って", "すぐ戻る"],
+        "bbl": ["Wait", "待って", "後で戻る"],
+        "bbs":["Wait", "待って", "すぐ戻るね"],
+        "wb":["Hi", "やあ", "おかえり"],
+        "afk": ["Away", "離れて", "離席中"],
+        "brt": ["Go", "行く", "すぐ行く"],
+        "gnight":["Night", "夜", "おやすみー"],
+        "peace out": ["Bye", "さようなら", "あばよ"],
+        "lolz": ["Haha", "ハハ", "www"],
+        "lol":["Haha", "ハハ", "笑"],
+        "lawl": ["Haha", "ハハ", "ワロタ"],
+        "lul": ["Haha", "ハハ", "草"],
+        "lmao":["Haha", "ハハ", "爆笑"],
+        "kek": ["Haha", "ハハ", "草"],
+        "loool": ["Haha", "ハハ", "わろたああ"],
+        "wtf":["What", "何", "は？何それ"],
+        "wth": ["What", "何", "何なんだよ"],
+        "omfg": ["Wow", "わあ", "マジかよ"],
+        "wdym":["What", "何", "どういう意味？"],
+        "yikes": ["Wow", "わあ", "うわぁ"],
+        "oof":["Wow", "わあ", "うっ(ダメージ)"],
+        "rip": ["Sad", "悲しい", "ご愁傷様"],
+        "sus": ["Sus", "疑わしい", "怪しい"],
+        "tyvm":["Thanks", "ありがとう", "本当にありがとう"],
+        "tysm":["Thanks", "ありがとう", "超ありがとう！"],
+        "ty": ["Thanks", "ありがとう", "ありがとう"],
+        "thx":["Thanks", "ありがとう", "ありがとう"],
+        "thnx": ["Thanks", "ありがとう", "サンクス！"],
+        "np": ["Ok", "わかりました", "問題ないよ"],
+        "yw":["Ok", "わかりました", "どういたしまして"],
+        "srry": ["Sorry", "ごめんなさい", "ごめっ"],
+        "sry": ["Sorry", "ごめんなさい", "ごめん"],
+        "soz": ["Sorry", "ごめんなさい", "ごめーん"],
+        "my bad":["Sorry", "ごめんなさい", "私のせいだ"],
+        "mb": ["Sorry", "ごめんなさい", "ごめん私のミス"],
+        "whoops": ["Sorry", "ごめんなさい", "あちゃー"],
+        "nevermind": ["Ok", "わかりました", "やっぱいいや"],
+        "nvm":["Ok", "わかりました", "どんまい！気にしないで"],
+        "no worries":["Ok", "わかりました", "気にすんな"],
+        "nw": ["Ok", "わかりました", "心配しないで"],
+        "fr":["Really", "本当", "マジで"],
+        "ngl": ["Really", "本当", "ぶっちゃけ"],
+        "tbh": ["Really", "本当", "正直言って"],
+        "imo": ["I", "私", "個人的には"],
+        "imho": ["I", "私", "ぶっちゃけ私の意見だと"],
+        "afaik": ["I", "私", "私の知る限りでは"],
+        "idk":["Unknown", "未知の", "わからん"],
+        "idc": ["Unknown", "未知の", "気にしない"],
+        "ik": ["Yes", "はい", "知ってる"],
+        "ikr": ["Yes", "はい", "だよね！"],
+        "rn": ["Now", "今", "今すぐ"],
+        "asap":["Now", "今", "なる早で"],
+        "btw": ["And", "そして", "ところで"],
+        "smth":["Thing", "もの", "何か"],
+        "bc": ["Because", "なぜなら", "なぜなら"],
+        "cuz":["Because", "なぜなら", "だって"],
+        "pls": ["Please", "お願いします", "お願い"],
+        "plz": ["Please", "お願いします", "たのむ"],
+        "prolly":["Maybe", "たぶん", "おそらく"],
+        "prob": ["Maybe", "たぶん", "たぶん"],
+        "kinda": ["Maybe", "たぶん", "なんか"],
+        "dunno":["Unknown", "未知の", "知らん"],
+        "wanna": ["Want", "欲しい", "したい"],
+        "gonna": ["Will", "するつもり", "するつもり"],
+        "gotta":["Must", "しなければならない", "しなきゃ"]
     };
 
     // ★ 2. 事後置換辞書（動詞用）★
-    // Google翻訳にかけると文法が崩壊してしまうため、Googleに直訳させたあとで日本語を自然に修正する単語
+    // Google翻訳にかけると文法が崩壊してしまう動詞を、Googleに自然に直訳させたあとで日本語をこっそり修正する
     const postTranslationDictionary = {
         "クラクションを鳴らして": "鳴いて",
         "クラクションを鳴らし": "鳴き",
@@ -342,8 +532,8 @@
     async function processTranslation(text) {
         if (!text) return;
 
-        // ★ 日本語のみ（＋例外アルファベット）の文章かどうかの事前判定
-        const allowedEnglishWords = ['sky', 'ok', 'gg', 'ty', 'thx', 'np', 'brb'];
+        // ★ 日本語のみ（＋例外アルファベット）の判定
+        const allowedEnglishWords =['sky', 'ok', 'gg', 'ty', 'thx', 'np', 'brb'];
         let checkText = text.toLowerCase();
         
         for (const word of allowedEnglishWords) {
@@ -361,10 +551,9 @@
             return;
         }
 
-        // --- 外国語が含まれていた場合の処理 ---
+        // --- セキュリティ・連投制限 ---
         const now = Date.now();
 
-        // 1. クールダウン（3分間ペナルティ）中かどうかの確認
         if (now < cooldownUntil) {
             if (!isCooldownNotified) {
                 const remainingSec = Math.ceil((cooldownUntil - now) / 1000);
@@ -374,13 +563,9 @@
             return;
         }
 
-        // 2. 短期的な誤操作防止（1.5秒以内の連打はチケットを消費せず無視）
-        if (now - lastRequestTime < 1500) {
-            return;
-        }
+        if (now - lastRequestTime < 1500) return;
         lastRequestTime = now;
 
-        // 3. チケットの自動回復処理（10秒で1枚回復）
         const elapsed = now - lastTokenUpdateTime;
         const restoreAmount = Math.floor(elapsed / 10000);
         if (restoreAmount > 0) {
@@ -388,7 +573,6 @@
             lastTokenUpdateTime = now - (elapsed % 10000);
         }
 
-        // 4. チケットの消費とクールダウン発動判定
         if (tokens > 0) {
             tokens--;
             isCooldownNotified = false;
@@ -406,40 +590,42 @@
         
         const resultDiv = appendTranslationGroup(safeText);
         
-        // --- 1. 事前置換（名詞のプレースホルダー処理） ---
+        // --- 1. 事前置換（ダミーネーム方式） ---
         let processedText = safeText;
-        let placeholders = {};
-        let counter = 0;
+        // 復元用に「Googleが訳したダミー日本語」をキー、「最終的な意味」を値にして保存する
+        let restoreDictionary = {};
 
         const sortedSlangs = Object.keys(slangDictionary).sort((a, b) => b.length - a.length);
 
         for (const slang of sortedSlangs) {
             const regex = new RegExp(`\\b${slang}\\b`, 'gi');
             if (regex.test(processedText)) {
-                // 文法崩壊を防ぐため、記号ではなく固有名詞風のマーカーを使用
-                const marker = `ZZZ${counter}ZZZ`;
-                placeholders[marker] = slangDictionary[slang];
-                processedText = processedText.replace(regex, marker);
-                counter++;
+                // ダミーの英単語に置き換える
+                const dummyWord = slangDictionary[slang][0];
+                const dummyJapanese = slangDictionary[slang][1];
+                const finalMeaning = slangDictionary[slang][2];
+                
+                processedText = processedText.replace(regex, dummyWord);
+                restoreDictionary[dummyJapanese] = finalMeaning;
             }
         }
 
-        // --- 2. Google翻訳の実行 ---
+        // --- 2. Google翻訳 ---
         let finalTranslation = await fetchGoogleTranslation(processedText);
 
-        // --- 3. 事前置換の復元 ---
-        for (const[marker, meaning] of Object.entries(placeholders)) {
-            // Googleがマーカーの前後に勝手にスペースを入れることがあるため、スペースごと置換
-            const markerRegex = new RegExp(`\\s*${marker}\\s*`, 'g');
-            finalTranslation = finalTranslation.replace(markerRegex, meaning);
+        // --- 3. 事前置換の復元（ダミーの日本語を、本来のゲーム用語に直す） ---
+        for (const[dummyJp, finalMeaning] of Object.entries(restoreDictionary)) {
+            // Googleが出力した日本語（アリスなど）を検索して置換する
+            const jpRegex = new RegExp(dummyJp, 'g');
+            finalTranslation = finalTranslation.replace(jpRegex, finalMeaning);
             
-            // 万が一Googleがマーカーを消してしまった場合の保険
-            if (!finalTranslation.includes(meaning)) {
-                finalTranslation += `\n(※${meaning})`;
+            // 万が一Googleがダミー単語を翻訳から消してしまった場合の保険
+            if (!finalTranslation.includes(finalMeaning)) {
+                finalTranslation += `\n(※${finalMeaning})`;
             }
         }
 
-        // --- 4. 事後置換（動詞の修正処理） ---
+        // --- 4. 事後置換（動詞や誤訳の修正） ---
         const sortedPostKeys = Object.keys(postTranslationDictionary).sort((a, b) => b.length - a.length);
         for (const key of sortedPostKeys) {
             const regex = new RegExp(key, 'gi');
@@ -448,7 +634,7 @@
             }
         }
 
-        // 成功したら表示を更新
+        // 成功時の表示
         resultDiv.textContent = finalTranslation;
         resultDiv.classList.remove('loading');
         resultDiv.style.color = 'var(--msg-received-text)';
@@ -460,7 +646,6 @@
             if (text && text.trim() !== '') {
                 let trimmedText = text.trim();
                 
-                // 100文字制限のチェックとアラート無限ループ防止
                 if (trimmedText.length > 100) {
                     if (trimmedText !== lastErrorText) {
                         lastErrorText = trimmedText;
@@ -477,19 +662,16 @@
         }
     }
 
-    // 画面クリックで自動翻訳
     document.addEventListener('mousedown', (e) => {
         if (e.target.tagName.toLowerCase() !== 'input') {
             readClipboardAndTranslate();
         }
     });
 
-    // ウィンドウアクティブで自動翻訳
     window.addEventListener('focus', () => {
         setTimeout(readClipboardAndTranslate, 100);
     });
 
-    // 手動ボタン送信
     sendBtn.addEventListener('click', () => {
         const text = inputText.value.trim();
         if (text) {
@@ -498,18 +680,15 @@
         }
     });
     
-    // Enterキー送信
     inputText.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             sendBtn.click();
         }
     });
 
-    // ペースト時の処理
     inputText.addEventListener('paste', (e) => {
         const pasteData = (e.clipboardData || window.clipboardData).getData('text');
         
-        // ペースト時も100文字制限チェック
         if (pasteData.length > 100) {
             e.preventDefault();
             alert('文字数が100文字を超えているため翻訳できません。\n(現在の文字数: ' + pasteData.length + '文字)');
